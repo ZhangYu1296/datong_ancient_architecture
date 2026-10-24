@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大同古建漫游 · 项目介绍</title>
+  <link rel="stylesheet" href="css/style.css?v=5">
+</head>
+<body>
+
+  <header class="topbar">
+    <button class="btn btn-ghost" onclick="location.href='index.html'">← 返回地图</button>
+    <div class="logo" style="font-size:18px"><span class="seal" style="width:26px;height:26px;font-size:14px">记</span>项目介绍 · 创作手记</div>
+    <div class="spacer"></div>
+    <button class="btn btn-gold" onclick="location.href='museum.html'">碎片博物馆</button>
+    <button class="btn btn-ghost" onclick="location.href='pointcloud/index.html'">点云秘境・古建数字舱</button>
+  </header>
+
+  <div class="page-shell">
+    <div class="page-inner article">
+
+      <div class="page-head">
+        <h1>穿越大同 · 古建漫游副本</h1>
+        <div class="sub">数字化保护大同古建，把中国故事讲给世界听</div>
+      </div>
+
+      <img class="hero-img" style="height:300px"
+        src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Chinese%20guofeng%20watercolor%20panorama%20of%20Datong%20ancient%20city%2C%20Yungang%20Buddha%20cliff%2C%20hanging%20temple%20on%20cliff%2C%20grand%20Liao%20dynasty%20temple%20halls%20and%20nine%20dragon%20glazed%20screen%20wall%2C%20golden%20sunset%20clouds%2C%20birds%2C%20mist&image_size=landscape_16_9"
+        alt="大同古建全景">
+
+      <h2>作品主题</h2>
+      <p>大同，北魏京华、辽金陪都、明清重镇，两千三百多年的建城史在黄土高原上叠出一层层木石的记忆。本作品以"穿越副本"为叙事外壳：玩家扮演一位穿越时空的旅人，在守护 NPC <b>佛小伴</b> 的引导下，沿古建时间线依次探访 <b>云冈石窟 → 悬空寺 → 华严寺 → 善化寺 → 永安寺 → 九龙壁 & 大同古城</b> 六处国宝古建，通过轻量闯关收集六块"记忆碎片"，最终拼合点亮大同古建的千年全景。</p>
+
+      <h2>创意故事</h2>
+      <p>传说每一座古建落成时，匠人都把一片"匠心"封存在建筑深处。岁月侵蚀、风雨剥蚀，六片记忆碎片渐渐散落。佛小伴——一位守护古建千年的小沙弥——需要一位有缘人帮它把碎片一一寻回。每通过一关，玩家不仅收获一块碎片，也收获一段真实的大同古建历史：马识善人的传说、悬空寺的插梁飞阁、薄伽教藏殿里露齿一笑的菩萨、善化寺雄巨的斜拱、永安寺满壁的水陆丹青、九龙壁上腾跃的琉璃游龙。</p>
+
+      <h2>技术介绍</h2>
+      <ul>
+        <li><b>3D 建模：</b>使用 Blender 制作古建模型，导出轻量 <b>.glb</b> 格式；当前版本内置程序化写意低多边形古建，可无缝替换为 Blender 成品模型。</li>
+        <li><b>网页 3D 渲染：</b>基于 <b>Three.js</b> 加载 3D 场景，轨道控制器实现拖拽旋转、滚轮缩放，配合实时光影与雾效营造古意氛围。</li>
+        <li><b>游戏框架：</b>HTML5 + CSS3 + 原生 JavaScript，多页面跳转；进度数据使用 <b>localStorage</b> 本地持久化，无需服务器即可完整体验。</li>
+        <li><b>交互设计：</b>地图拖拽平移 / 锚点缩放、逐字台词弹窗 NPC 系统、答题闯关校验、碎片收集与汇聚动画。</li>
+      </ul>
+      <div class="tech-tags">
+        <span>HTML5</span><span>CSS3</span><span>JavaScript</span><span>Three.js</span>
+        <span>Blender</span><span>glTF / glb</span><span>LocalStorage</span><span>国风 UI 设计</span>
+      </div>
+
+      <h2>文化意义</h2>
+      <p>古建是不可再生的文化遗存。我们希望用数字化的方式，为大同古建建立一份"可漫游、可互动、可传播"的青春档案：让年轻人在游戏化的漫游中认识斗拱、庑殿顶、水陆画与琉璃照壁，让"数字化保护"不只是扫描与存档，更是一次面向公众的文化转译——用世界通行的 3D 网页语言，讲好中国古建故事。</p>
+
+      <h2>团队成员</h2>
+      <div class="team-grid">
+        <div class="member"><div class="m-avatar">🧭</div><div class="m-name">队长 ·（姓名）</div><div class="m-role">策划 / 关卡文案</div></div>
+        <div class="member"><div class="m-avatar">🎨</div><div class="m-name">队员 ·（姓名）</div><div class="m-role">UI 设计 / 国风视觉</div></div>
+        <div class="member"><div class="m-avatar">🗿</div><div class="m-name">队员 ·（姓名）</div><div class="m-role">Blender 建模</div></div>
+        <div class="member"><div class="m-avatar">💻</div><div class="m-name">队员 ·（姓名）</div><div class="m-role">Three.js / 前端开发</div></div>
+      </div>
+      <p style="font-size:13px;color:#6d5b4b">* 请将上方成员姓名替换为实际参赛信息。</p>
+
+      <h2>致谢</h2>
+      <p>感谢大同市文物部门与云冈研究院公开的历史资料与影像记录，感谢梁思成先生等前辈学者对大同古建的考察著述，感谢指导老师与所有测试反馈的同学。古建千年，守护有我们。</p>
+
+      <div style="text-align:center;margin-top:26px">
+        <button class="btn btn-red" onclick="location.href='index.html'">回到古建漫游地图</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js?v=5"></script>
+  <script src="js/progress.js?v=5"></script>
+  <script src="js/npc.js?v=5"></script>
+  <script>NPC.show({ lines: ["这是我们的创作手记，评审老师请慢看～", "从主题到技术，从文化意义到团队名单，都在这里啦。"] });</script>
+</body>
+</html>

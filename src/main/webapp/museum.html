@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大同古建漫游 · 碎片博物馆</title>
+  <link rel="stylesheet" href="css/style.css?v=5">
+</head>
+<body>
+
+  <header class="topbar">
+    <button class="btn btn-ghost" onclick="location.href='index.html'">← 返回首页</button>
+    <div class="logo" style="font-size:18px"><span class="seal" style="width:26px;height:26px;font-size:14px">藏</span>碎片博物馆</div>
+    <div class="spacer"></div>
+    <div class="progress-box">
+      <span class="label">碎片</span>
+      <span class="num" id="fragNum">0/6</span>
+      <div class="progress-pips" id="fragPips"></div>
+    </div>
+    <button class="btn btn-gold" onclick="location.href='intro.html'">项目介绍</button>
+    <button class="btn btn-ghost" onclick="location.href='pointcloud/index.html'">点云秘境・古建数字舱</button>
+  </header>
+
+  <div class="page-shell">
+    <div class="page-inner">
+      <div class="page-head">
+        <h1>碎片博物馆</h1>
+        <div class="sub">集齐六块记忆碎片，点亮大同古建的千年全景</div>
+      </div>
+
+      <!-- 通关奖励：《大同古建数字图鉴》 -->
+      <div class="tujian-banner" id="tujianBanner">
+        <div class="tj-lock">
+          <span class="tj-icon">📜</span>
+          <div>
+            <h3>《大同古建数字图鉴》</h3>
+            <p>通关全部 6 关后解锁 —— 集齐碎片，点亮你的大同古建电子图鉴</p>
+          </div>
+        </div>
+        <div class="tujian-grid" id="tujianGrid" hidden>
+          <h2 class="tj-title">✦ 大同古建数字图鉴 · 通关纪念 ✦</h2>
+          <div class="tj-cards" id="tujianCards"></div>
+          <p class="tj-epilog">从北魏的佛光到明代的琉璃，<br>你走完了六站古建，也点亮了大同一千五百年的营造长卷。<br>数字化保护，让千年古建在比特世界里再活一千年。</p>
+        </div>
+      </div>
+
+      <div class="museum-grid" id="museumGrid">
+        <!-- 卡片由 museum.js 动态生成 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 藏品详情弹窗 -->
+  <div class="modal-mask" id="fragModal">
+    <div class="modal-panel">
+      <button class="modal-close" id="fragModalClose">&times;</button>
+      <div class="modal-title" id="fmTitle">藏品</div>
+      <img id="fmImg" class="hero-img" style="height:230px" alt="古建图片">
+      <p id="fmText" style="margin-top:12px"></p>
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-gold" id="fmGo">前往回顾关卡 →</button>
+        <button class="btn btn-ghost" id="fmClose2">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="js/data.js?v=5"></script>
+  <script src="js/progress.js?v=5"></script>
+  <script src="js/npc.js?v=5"></script>
+  <script src="js/buildings.js?v=5"></script>
+  <script src="js/museum.js?v=5"></script>
+</body>
+</html>

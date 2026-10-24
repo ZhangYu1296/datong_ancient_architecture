@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大同古建漫游 · 关卡影像</title>
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <style>
+    /* 视频门庭页：保留顶栏，影像占满其余全部空间 */
+    body { overflow: hidden; background: #0d0a07; }
+    .video-stage {
+      position: absolute; top: 62px; left: 0; right: 0; bottom: 0;
+      background: #000;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .video-stage video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+    /* 自动播放被浏览器拦截时的兜底遮罩 */
+    .tap-play {
+      position: absolute; inset: 0; z-index: 5;
+      display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      cursor: pointer; color: #f0e6c8;
+      background: radial-gradient(ellipse at center, rgba(30, 22, 10, .82), rgba(8, 6, 3, .94));
+    }
+    .tap-play .tp-icon {
+      width: 86px; height: 86px; border-radius: 50%;
+      border: 2px solid rgba(240, 201, 79, .8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 34px; color: #f0c94f; padding-left: 8px;
+      box-shadow: 0 0 26px rgba(240, 201, 79, .35);
+      animation: tpPulse 1.8s ease-in-out infinite;
+    }
+    .tap-play p { font-size: 17px; letter-spacing: 4px; }
+    @keyframes tpPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+    /* 载入提示 */
+    .load-tip {
+      position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
+      color: rgba(240, 230, 200, .55); font-size: 13px; letter-spacing: 3px; z-index: 4;
+    }
+  </style>
+</head>
+<body class="npc-top">
+
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <button class="btn btn-ghost" id="btnBack">← 返回</button>
+    <div class="logo" style="font-size:18px"><span class="seal" style="width:26px;height:26px;font-size:14px">影</span><span id="pvTag">关卡影像</span></div>
+    <div class="spacer"></div>
+    <button class="btn btn-gold" id="btnSkip">跳过影像 ▸</button>
+  </header>
+
+  <!-- 影像区 -->
+  <div class="video-stage">
+    <video id="pv" playsinline preload="auto"></video>
+    <div class="tap-play" id="tapPlay">
+      <div class="tp-icon">▶</div>
+      <p>点击任意处播放影像</p>
+    </div>
+    <div class="load-tip" id="loadTip">影像载入中 …</div>
+  </div>
+
+  <script src="js/data.js?v=5"></script>
+  <script>
+    /* ========= 路由解析 =========
+     * ?v=1..6     → videos/levelN.mp4 → 播完进对应关卡（不再自动弹佛小伴）
+     * ?v=opening  → videos/opening.mp4 → 播完进漫游地图
+     * ?v=ending   → videos/ending.mp4  → 播完进结局页
+     */
+    const NUM_CN = ["壹", "贰", "叁", "肆", "伍", "陆"];
+    const v = new URLSearchParams(location.search).get("v") || "opening";
+    let conf;
+    if (/^[1-6]$/.test(v)) {
+      const lv = (typeof LEVELS !== "undefined") && LEVELS[Number(v) - 1];
+      conf = {
+        src: `videos/level${v}.mp4`,
+        title: `第${NUM_CN[v - 1]}关影像 · ${lv ? lv.name : ""}`,
+        back: "map.html",
+        goto: `level.html?levelId=${v}`,
+        seen: `videoSeen_${v}`
+      };
+    } else if (v === "ending") {
+      conf = { src: "videos/ending.mp4", title: "终章影像 · 碎片重聚", back: "museum.html", goto: "ending.html", seen: null };
+    } else {
+      conf = { src: "videos/opening.mp4", title: "序幕影像 · 一梦入大同", back: "index.html", goto: "map.html", seen: null };
+    }
+
+    document.title = `大同古建漫游 · ${conf.title}`;
+    document.getElementById("pvTag").textContent = conf.title;
+    document.getElementById("btnBack").addEventListener("click", () => { location.href = conf.back; });
+
+    /* ========= 播放与跳转 ========= */
+    let gone = false;
+    function goNext() {
+      if (gone) return;
+      gone = true;
+      try { if (conf.seen) sessionStorage.setItem(conf.seen, "1"); } catch (e) {}
+      location.href = conf.goto;
+    }
+
+    const video = document.getElementById("pv");
+    const tapPlay = document.getElementById("tapPlay");
+    const loadTip = document.getElementById("loadTip");
+    let started = false;
+
+    video.src = conf.src;
+    video.addEventListener("playing", () => {
+      started = true;
+      tapPlay.style.display = "none";
+      loadTip.style.display = "none";
+    });
+    video.addEventListener("ended", goNext);
+    video.addEventListener("error", goNext);
+
+    /* 自动播放；被浏览器拦截时退化为点击播放 */
+    const p = video.play();
+    if (p && p.catch) p.catch(() => { tapPlay.style.display = "flex"; loadTip.style.display = "none"; });
+    tapPlay.addEventListener("click", () => { video.play(); });
+
+    /* 兜底：影像长时间无法开播则自动放行，避免卡死 */
+    setTimeout(() => { if (!started) goNext(); }, 15000);
+
+    document.getElementById("btnSkip").addEventListener("click", goNext);
+  </script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大同古建漫游 · 关于我们</title>
+  <link rel="stylesheet" href="css/style.css?v=5">
+</head>
+<body class="scroll-page">
+
+  <header class="topbar">
+    <button class="btn btn-ghost" onclick="location.href='index.html'">← 返回首页</button>
+    <div class="logo" style="font-size:18px"><span class="seal" style="width:26px;height:26px;font-size:14px">缘</span>关于我们 · 项目说明</div>
+    <div class="spacer"></div>
+    <button class="btn btn-gold" onclick="location.href='museum.html'">碎片博物馆</button>
+    <button class="btn btn-ghost" onclick="location.href='pointcloud/index.html'">点云秘境・古建数字舱</button>
+  </header>
+
+  <div class="page-shell">
+    <div class="page-inner">
+      <div class="page-head">
+        <h1>关于我们 · 项目说明</h1>
+        <div class="sub">以数字化保护为舟，载千年古建驶入比特世界</div>
+      </div>
+
+      <!-- 项目初衷 -->
+      <section class="article-sec">
+        <h2>项目初衷</h2>
+        <div class="article">
+          <p>大同的六处古建，跨越北魏至明代，是刻在木头与石头上的编年史。然而风化、虫蛀、地震与岁月，正让它们缓慢老去；千里之遥，也让许多人无缘亲见。</p>
+          <p>我们希望用<b>实景三维扫描</b>（精度 0.03mm）为古建留存数字分身，用<b>轻量化网页漫游</b>降低参观门槛——一部手机、一个浏览器，就能推门而入；再用<b>闯关游戏 + AI 短视频</b>的年轻叙事，让文化真正被「玩懂」。</p>
+          <p>数字化保护，就是让千年的古建，在比特的世界里再活一千年。</p>
+        </div>
+      </section>
+
+      <!-- 团队介绍 -->
+      <section class="article-sec">
+        <h2>团队介绍</h2>
+        <div class="team-grid">
+          <div class="team-card"><div class="tm-avatar">设</div><h4>策划 / 导演</h4><p>世界观构建 · 短视频脚本 · 美术设定</p></div>
+          <div class="team-card"><div class="tm-avatar">模</div><h4>三维数字组</h4><p>实地扫描 · 点云处理 · 建模贴图</p></div>
+          <div class="team-card"><div class="tm-avatar">码</div><h4>前端开发组</h4><p>Three.js 视口 · 闯关系统 · 音效交互</p></div>
+          <div class="team-card"><div class="tm-avatar">文</div><h4>文脉研究组</h4><p>史料考证 · 文案撰写 · 旁白配音</p></div>
+        </div>
+        <p class="acc-note">（成员名单与分工详情待补充）</p>
+      </section>
+
+      <!-- 项目成果 -->
+      <section class="article-sec">
+        <h2>项目成果</h2>
+        <div class="tech-flow">
+          <div class="flow-step"><span class="fs-num">01</span><h4>网页闯关系统</h4><p>剧情化首页 · 6 关古建探索 · 碎片收藏 · 数字图鉴，localStorage 存档闭环</p></div>
+          <div class="flow-step"><span class="fs-num">02</span><h4>4 分钟 AI 短视频</h4><p>穿越叙事开场 + 六大点位巡礼，与网页文案、旁白、参数全面对齐</p></div>
+          <div class="flow-step"><span class="fs-num">03</span><h4>三维数字资产</h4><p>六大点位实景扫描资产，精度 0.03mm，网页轻量化适配</p></div>
+        </div>
+        <p class="acc-note">本项目为参赛作品 · 素材含 AI 生成影像与三维扫描资产，史料内容已标注来源</p>
+      </section>
+
+      <!-- 引用与史料来源 -->
+      <section class="article-sec">
+        <h2>引用 · 史料来源</h2>
+        <ul class="ref-list">
+          <li>郦道元《水经注》—— 武州山石窟寺相关记载</li>
+          <li>徐霞客《徐霞客游记》—— 悬空寺「天下巨观」条目</li>
+          <li>梁思成等《大同古建筑调查报告》—— 华严寺、善化寺测绘与断代研究</li>
+          <li>云冈研究院公开资料 —— 昙曜五窟开凿年代与造像说明</li>
+          <li>大同市文物局公开资料 —— 九龙壁、善化寺、永安寺沿革</li>
+          <li>郑振铎相关评论 —— 「东方维纳斯」之誉</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/npc.js?v=5"></script>
+  <script>
+    // 关于我们 · 佛小伴开场
+    NPC.show({
+      lines: [
+        "这就是守护古建的我们！",
+        "用数字化把千年木构留到下一个千年，就是我们做这个小站的初衷。",
+        "团队的故事都在这里，请慢慢看～"
+      ]
+    });
+  </script>
+</body>
+</html>

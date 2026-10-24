@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大同古建漫游 · 关卡</title>
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <style>
+    /* 关卡页：佛小伴对话框居中弹出（与首页一致） */
+    body.npc-top .npc-card {
+      top: 50%; left: 50%; bottom: auto;
+      transform: translate(-50%, -46%) scale(.92);
+      width: min(470px, 92vw);
+      box-shadow: 0 26px 60px rgba(20, 12, 4, .55), 0 0 0 5px rgba(240, 201, 79, .28), inset 0 0 0 1px rgba(255, 255, 255, .6);
+    }
+    body.npc-top .npc-card.show { transform: translate(-50%, -50%) scale(1); }
+    body.npc-top .npc-card::before { display: none; }
+  </style>
+</head>
+<body class="npc-top">
+
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <button class="btn btn-ghost" onclick="location.href='map.html'">← 返回地图</button>
+    <div class="logo" style="font-size:18px"><span class="seal" style="width:26px;height:26px;font-size:14px">关</span><span id="lvTag">关卡</span></div>
+    <div class="spacer"></div>
+    <div class="progress-box">
+      <span class="label">碎片</span>
+      <span class="num" id="fragNum">0/6</span>
+      <div class="progress-pips" id="fragPips"></div>
+    </div>
+    <button class="btn btn-gold" onclick="location.href='museum.html'">碎片博物馆</button>
+    <button class="btn btn-ghost" onclick="location.href='pointcloud/index.html'">点云秘境・古建数字舱</button>
+  </header>
+
+  <div class="level-wrap">
+    <!-- 左：3D 视口 -->
+    <div class="level-3d" id="level3d">
+      <canvas id="stage"></canvas>
+      <div class="view-tag" id="viewTag">古建 3D 视口</div>
+      <div class="view-hint">🖱 拖动旋转 · 滚轮缩放 · 点击<b style="color:#f0c94f">金色光点</b>探索彩蛋</div>
+
+      <!-- 点云汇聚成型加载动画（与短视频开场同款） -->
+      <div class="converge-mask" id="convergeMask">
+        <canvas id="convergeCv"></canvas>
+        <p class="converge-txt">点云汇聚中 · 三维资产精度 0.03mm</p>
+      </div>
+    </div>
+
+    <!-- 右：内容区 -->
+    <div class="level-side">
+      <section class="panel level-head">
+        <h1><span id="lvName">建筑名称</span><span class="dynasty" id="lvDynasty">朝代</span></h1>
+        <div class="period" id="lvPeriod"></div>
+        <div class="desc" id="lvDesc"></div>
+        <div style="margin-top:10px">
+          <button class="btn btn-ghost" id="btnReplayStory">🔔 再听佛小伴讲一遍</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <span class="p-tag">⚔ 闯关任务</span>
+        <div class="quiz-q"><span class="q-mark">问</span><span id="quizQ"></span></div>
+        <div class="quiz-opts" id="quizOpts"></div>
+        <div class="quiz-msg" id="quizMsg"></div>
+      </section>
+
+      <!-- 文脉档案（文化板块） -->
+      <section class="panel lore-panel">
+        <span class="p-tag">📜 文脉档案</span>
+        <h3 class="lore-h">历史溯源</h3>
+        <p class="lore-p" id="loreHistory"></p>
+        <h3 class="lore-h">建筑特色</h3>
+        <ul class="lore-list" id="loreFeatures"></ul>
+        <h3 class="lore-h">非遗 / 文物看点</h3>
+        <ul class="lore-list" id="loreHeritage"></ul>
+      </section>
+
+      <!-- 时光对比：老照片 vs 数字复原 -->
+      <section class="panel">
+        <span class="p-tag">🕰 时光对比</span>
+        <div class="compare" id="cmpBox">
+          <img class="cmp-new" id="cmpNew" alt="数字复原效果">
+          <img class="cmp-old" id="cmpOld" alt="历史老照片">
+          <div class="cmp-handle" id="cmpHandle"><i>↔</i></div>
+          <span class="cmp-tag t-old">史料老照片</span>
+          <span class="cmp-tag t-new">数字复原</span>
+        </div>
+        <p class="cmp-caption" id="cmpCaption"></p>
+      </section>
+
+      <!-- 数字复原说明（技术板块 / 答辩亮点） -->
+      <section class="panel tech-panel">
+        <span class="p-tag">🛰 数字复原说明</span>
+        <span class="acc-badge">精度 0.03mm</span>
+        <h3 class="lore-h">扫描采集</h3>
+        <p class="lore-p" id="techScan"></p>
+        <h3 class="lore-h">难点攻关</h3>
+        <p class="lore-p" id="techDiff"></p>
+      </section>
+
+      <!-- 闯关手记 / 探索笔记（剧情板块） -->
+      <section class="panel notes-panel">
+        <span class="p-tag">✍ 闯关手记 · 穿越学生视角</span>
+        <div class="notes-box" id="notesBox"></div>
+        <button class="btn btn-ghost btn-sm" id="btnVoice">🎙 播放旁白讲解</button>
+      </section>
+
+      <section class="panel level-actions">
+        <button class="btn btn-red" id="btnSubmit" disabled>提交任务</button>
+        <button class="btn btn-ghost" onclick="location.href='map.html'">返回地图</button>
+        <button class="btn btn-gold" id="btnNext" style="display:none">前往下一关 →</button>
+      </section>
+    </div>
+  </div>
+
+  <!-- 彩蛋热点讲解弹窗 -->
+  <div class="modal-mask" id="hsModal">
+    <div class="modal-panel">
+      <button class="modal-close" id="hsClose">&times;</button>
+      <div class="modal-title" id="hsTitle">彩蛋</div>
+      <p id="hsText" style="margin-top:12px;line-height:1.9"></p>
+      <div style="margin-top:14px"><span class="acc-badge">彩蛋 · 数字档案</span></div>
+    </div>
+  </div>
+
+  <!-- 通关成功覆盖层 -->
+  <div class="win-mask" id="winMask">
+    <div class="win-title">闯关成功</div>
+    <div class="win-frag"><canvas id="fragCanvas" width="150" height="150"></canvas></div>
+    <div class="win-frag-name" id="winFragName">获得碎片</div>
+    <div class="win-sub" id="winSub"></div>
+    <div class="win-actions">
+      <button class="btn btn-gold" id="winNext" style="display:none">前往下一关 →</button>
+      <button class="btn btn-ghost" onclick="location.href='museum.html'">看看碎片博物馆</button>
+      <button class="btn btn-ghost" onclick="location.href='map.html'">返回地图</button>
+    </div>
+  </div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="lib/OrbitControls.js"></script>
+  <script src="lib/GLTFLoader.js"></script>
+  <script src="js/data.js?v=5"></script>
+  <script src="js/progress.js?v=5"></script>
+  <script src="js/npc.js?v=5"></script>
+  <script src="js/particles.js?v=5"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/gujian-hanging.js?v=3"></script>
+  <script src="js/gujian-huayan.js?v=3"></script>
+  <script src="js/gujian-shanhua.js?v=3"></script>
+  <script src="js/buildings.js?v=3"></script>
+  <script src="js/level.js?v=5"></script>
+</body>
+</html>

@@ -1,0 +1,2437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>山西古建 · 三维全景</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231a1410'/%3E%3Cpath d='M32 10 L50 22 L50 40 L32 54 L14 40 L14 22 Z' fill='%23c9a84c'/%3E%3Cpath d='M22 24 L42 24 M22 30 L42 30 M22 36 L42 36' stroke='%231a1410' stroke-width='2.5'/%3E%3C/svg%3E">
+<style>
+:root {
+  --ink-deep: #0a0e12;
+  --ink-dark: #131820;
+  --ink-mid: #1e2530;
+  --stone: #3a4250;
+  --wood-light: #c8a878;
+  --wood-mid: #9a7848;
+  --wood-dark: #5a3e22;
+  --gold: #d4a84b;
+  --gold-bright: #e8c878;
+  --gold-dim: #9a7a30;
+  --red-seal: #b8362e;
+  --moss: #5a6a48;
+  --text-light: #d8d0c0;
+  --text-dim: #a09888;
+  --text-mute: #6a6258;
+  --tang: #c87a3a;
+  --liao: #8a6a3a;
+  --wudai: #7a6a4a;
+  --song: #5a8a4a;
+  --jin: #6a5a8a;
+  --ming: #b8983a;
+  --qing: #4a7a7a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--ink-deep);
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  color: var(--text-light);
+}
+
+/* ===== Views ===== */
+.view {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: none;
+}
+.view.active { display: block; }
+
+/* ===== Map View ===== */
+#map-view {
+  background: radial-gradient(ellipse at center, #1a2028 0%, #0a0e12 70%);
+}
+
+#map-view::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse at 30% 40%, rgba(90, 106, 72, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 60%, rgba(212, 168, 75, 0.04) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+#shanxi-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 2;
+  transition: viewBox 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+  cursor: grab;
+}
+#shanxi-svg:active { cursor: grabbing; }
+
+.city-path {
+  fill: rgba(30, 37, 48, 0.25);
+  stroke: rgba(196, 168, 120, 0.18);
+  stroke-width: 1;
+  transition: fill 0.3s, stroke 0.3s;
+  cursor: pointer;
+}
+.city-path:hover {
+  fill: rgba(58, 42, 24, 0.25);
+  stroke: rgba(196, 168, 120, 0.4);
+}
+.city-path.active {
+  fill: rgba(58, 42, 24, 0.5);
+  stroke: rgba(212, 168, 75, 0.7);
+  stroke-width: 1.5;
+}
+.city-label {
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  font-size: 9px;
+  font-weight: 300;
+  fill: rgba(160, 152, 136, 0.35);
+  text-anchor: middle;
+  pointer-events: none;
+  transition: fill 0.3s, opacity 0.3s;
+  letter-spacing: 0.05em;
+}
+.city-path:hover + .city-label,
+.city-label:hover {
+  fill: rgba(212, 168, 75, 0.7);
+}
+
+/* 河流已移除 */
+
+/* ===== Markers (no CSS transform conflict) ===== */
+.marker-group { cursor: pointer; }
+
+.marker-pulse {
+  fill: none;
+  stroke-width: 1.5;
+  opacity: 0;
+  animation: pulse 2.5s ease-out infinite;
+}
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
+.marker-dot {
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 4px currentColor);
+  transition: r 0.2s, filter 0.2s;
+}
+
+.marker-group:hover .marker-dot {
+  r: 8;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.marker-ring {
+  fill: none;
+  stroke-width: 1;
+  opacity: 0.4;
+  transition: opacity 0.2s, r 0.2s;
+}
+
+.marker-group:hover .marker-ring {
+  opacity: 0.7;
+  r: 14;
+}
+
+.marker-label {
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--text-light);
+  paint-order: stroke;
+  stroke: rgba(10, 14, 18, 0.9);
+  stroke-width: 3;
+  pointer-events: none;
+  opacity: 0.8;
+  transition: opacity 0.2s, fill 0.2s;
+}
+.marker-group:hover .marker-label {
+  opacity: 1;
+  fill: var(--gold-bright);
+}
+
+.marker-era {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 9px;
+  fill: var(--text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  pointer-events: none;
+}
+
+/* ===== Timeline View ===== */
+#timeline-view {
+  background: radial-gradient(ellipse at center, #1a1a14 0%, #0a0a06 70%);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#timeline-view::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(200, 122, 58, 0.05) 0%, transparent 40%),
+    radial-gradient(ellipse at 80% 80%, rgba(90, 138, 74, 0.04) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.timeline-container {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8rem 2rem 4rem;
+}
+
+.timeline-title {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.timeline-title h1 {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 2rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.15em;
+  margin-bottom: 0.5rem;
+}
+
+.timeline-title p {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.85rem;
+  color: var(--text-mute);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+/* Era sections */
+.era-section {
+  margin-bottom: 3rem;
+  position: relative;
+}
+
+.era-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.era-badge {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 1.8rem;
+  color: #fff;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 0 20px currentColor;
+}
+
+.era-badge::after {
+  content: '';
+  position: absolute;
+  top: 100%; left: 50%;
+  width: 2px; height: 60px;
+  background: linear-gradient(to bottom, currentColor, transparent);
+  transform: translateX(-50%);
+}
+
+.era-badge.tang { background: var(--tang); color: var(--tang); }
+.era-badge.tang::after { background: linear-gradient(to bottom, var(--tang), transparent); }
+.era-badge.tang span { color: #fff; }
+
+.era-badge.liao { background: var(--liao); color: var(--liao); }
+.era-badge.liao::after { background: linear-gradient(to bottom, var(--liao), transparent); }
+.era-badge.liao span { color: #fff; }
+
+.era-badge.wudai { background: var(--wudai); color: var(--wudai); }
+.era-badge.wudai::after { background: linear-gradient(to bottom, var(--wudai), transparent); }
+.era-badge.wudai span { color: #fff; }
+
+.era-badge.song { background: var(--song); color: var(--song); }
+.era-badge.song::after { background: linear-gradient(to bottom, var(--song), transparent); }
+.era-badge.song span { color: #fff; }
+
+.era-badge.jin { background: var(--jin); color: var(--jin); }
+.era-badge.jin::after { background: linear-gradient(to bottom, var(--jin), transparent); }
+.era-badge.jin span { color: #fff; }
+
+.era-badge.ming { background: var(--ming); color: var(--ming); }
+.era-badge.ming::after { background: linear-gradient(to bottom, var(--ming), transparent); }
+.era-badge.ming span { color: #fff; }
+
+.era-info h2 {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 1.4rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.08em;
+}
+
+.era-info .era-dates {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.82rem;
+  color: var(--gold-dim);
+  letter-spacing: 0.15em;
+  margin-top: 0.2rem;
+}
+
+.era-info .era-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-top: 0.5rem;
+  max-width: 600px;
+  line-height: 1.7;
+}
+
+/* Building cards in timeline */
+.era-buildings {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  padding-left: 96px;
+}
+
+.tl-building-card {
+  width: 260px;
+  background: rgba(19, 24, 32, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(196, 168, 120, 0.15);
+  border-radius: 5px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.tl-building-card:hover {
+  border-color: var(--gold-dim);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.tl-card-glyph {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 2.5rem;
+  color: var(--gold);
+  position: relative;
+  overflow: hidden;
+}
+
+.tl-card-year {
+  position: absolute;
+  top: 0.5rem; right: 0.6rem;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.72rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.1em;
+  background: rgba(10, 14, 18, 0.7);
+  padding: 0.2rem 0.5rem;
+  border-radius: 2px;
+  border: 1px solid rgba(196, 168, 120, 0.2);
+}
+
+.tl-card-body { padding: 0.8rem 1rem; }
+
+.tl-card-name {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 1.05rem;
+  color: var(--gold-bright);
+  margin-bottom: 0.15rem;
+}
+
+.tl-card-location {
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  margin-bottom: 0.4rem;
+}
+
+.tl-card-desc {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tl-card-significance {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(196, 168, 120, 0.1);
+  font-size: 0.7rem;
+  color: var(--gold-dim);
+  font-style: italic;
+}
+
+/* ===== Header ===== */
+#header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: 1.2rem 2.5rem 0.8rem;
+  z-index: 100;
+  background: linear-gradient(to bottom, rgba(10, 14, 18, 0.92) 0%, rgba(10, 14, 18, 0) 100%);
+  pointer-events: none;
+}
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.header-left { pointer-events: auto; }
+.header-title {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 2rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-shadow: 0 2px 16px rgba(212, 168, 75, 0.2);
+}
+.header-sub {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.8rem;
+  color: var(--text-mute);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-top: 0.3rem;
+}
+.header-right {
+  pointer-events: auto;
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+.stat-block { text-align: right; }
+.stat-num {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 1.6rem;
+  color: var(--gold-bright);
+  font-weight: 600;
+  line-height: 1;
+}
+.stat-label {
+  font-size: 0.65rem;
+  color: var(--text-mute);
+  letter-spacing: 0.15em;
+  margin-top: 0.2rem;
+}
+
+/* ===== View Toggle ===== */
+#view-toggle {
+  position: fixed;
+  top: 5.5rem;
+  right: 2.5rem;
+  z-index: 100;
+  display: flex;
+  gap: 0.3rem;
+  background: rgba(19, 24, 32, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(196, 168, 120, 0.15);
+  border-radius: 4px;
+  padding: 0.25rem;
+}
+.view-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s;
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+}
+.view-btn:hover { color: var(--gold-bright); }
+.view-btn.active {
+  background: rgba(90, 62, 34, 0.5);
+  color: var(--gold-bright);
+}
+
+/* ===== Legend ===== */
+#legend {
+  position: fixed;
+  top: 5.5rem;
+  left: 2.5rem;
+  z-index: 50;
+  background: rgba(19, 24, 32, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(196, 168, 120, 0.2);
+  border-radius: 4px;
+  padding: 0.8rem 1rem;
+  pointer-events: auto;
+}
+.legend-title {
+  font-size: 0.68rem;
+  color: var(--text-mute);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+}
+.legend-items { display: flex; flex-direction: column; gap: 0.3rem; }
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+.legend-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legend-dot.tang { background: var(--tang); box-shadow: 0 0 5px var(--tang); }
+.legend-dot.liao { background: var(--liao); box-shadow: 0 0 5px var(--liao); }
+.legend-dot.wudai { background: var(--wudai); box-shadow: 0 0 5px var(--wudai); }
+.legend-dot.song { background: var(--song); box-shadow: 0 0 5px var(--song); }
+.legend-dot.jin { background: var(--jin); box-shadow: 0 0 5px var(--jin); }
+.legend-dot.ming { background: var(--ming); box-shadow: 0 0 5px var(--ming); }
+
+/* ===== Info Card ===== */
+#info-card {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translate(-50%, 120%);
+  width: 640px;
+  max-width: 90%;
+  background: rgba(13, 17, 24, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(196, 168, 120, 0.3);
+  border-radius: 6px;
+  padding: 1.5rem 2rem;
+  z-index: 200;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+#info-card.visible { transform: translate(-50%, 0); }
+
+.card-visual {
+  width: 90px; height: 90px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--ink-mid), var(--ink-dark));
+  border: 1px solid rgba(196, 168, 120, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 2.2rem;
+  color: var(--gold);
+}
+.card-content { flex: 1; }
+.card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  margin-bottom: 0.4rem;
+}
+.card-name {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 1.4rem;
+  color: var(--gold-bright);
+  line-height: 1;
+}
+.card-era {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.75rem;
+  color: var(--gold-dim);
+  letter-spacing: 0.15em;
+}
+.card-location { font-size: 0.75rem; color: var(--text-mute); margin-bottom: 0.5rem; }
+.card-desc { font-size: 0.82rem; color: var(--text-dim); line-height: 1.7; margin-bottom: 0.7rem; }
+.card-data { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+.data-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--text-mute);
+}
+.data-pill strong {
+  color: var(--gold-bright);
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.card-actions { display: flex; gap: 0.6rem; }
+
+.btn-enter {
+  background: linear-gradient(135deg, var(--wood-dark), var(--wood-mid));
+  border: 1px solid var(--gold-dim);
+  color: var(--gold-bright);
+  padding: 0.5rem 1.5rem;
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.btn-enter:hover {
+  background: linear-gradient(135deg, var(--wood-mid), var(--wood-light));
+  box-shadow: 0 0 20px rgba(212, 168, 75, 0.3);
+  transform: translateY(-1px);
+}
+.btn-close-card {
+  background: rgba(30, 37, 48, 0.6);
+  border: 1px solid rgba(196, 168, 120, 0.2);
+  color: var(--text-dim);
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+.btn-close-card:hover { color: var(--text-light); border-color: rgba(196, 168, 120, 0.4); }
+
+/* ===== Grid View ===== */
+#grid-view {
+  background: radial-gradient(ellipse at center, #1a2028 0%, #0a0e12 70%);
+  overflow-y: auto;
+}
+.grid-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8rem 2rem 4rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  justify-content: center;
+}
+.grid-card {
+  width: 270px;
+  background: rgba(19, 24, 32, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(196, 168, 120, 0.15);
+  border-radius: 5px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+.grid-card:hover {
+  border-color: var(--gold-dim);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+.grid-card-visual {
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 2.6rem;
+  color: var(--gold);
+  position: relative;
+  overflow: hidden;
+}
+.grid-card-era {
+  position: absolute;
+  top: 0.5rem; right: 0.6rem;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.65rem;
+  color: var(--gold-dim);
+  letter-spacing: 0.15em;
+  background: rgba(10, 14, 18, 0.6);
+  padding: 0.2rem 0.5rem;
+  border-radius: 2px;
+}
+.grid-card-body { padding: 0.8rem 1rem; }
+.grid-card-name {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 1.1rem;
+  color: var(--gold-bright);
+  margin-bottom: 0.2rem;
+}
+.grid-card-location { font-size: 0.7rem; color: var(--text-mute); margin-bottom: 0.4rem; }
+.grid-card-desc {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ===== Footer ===== */
+#footer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  padding: 0.6rem 2.5rem;
+  z-index: 50;
+  text-align: center;
+  background: linear-gradient(to top, rgba(10, 14, 18, 0.7) 0%, transparent 100%);
+  pointer-events: none;
+}
+.footer-text {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* ===== Corner Deco ===== */
+.corner-deco {
+  position: fixed;
+  width: 50px; height: 50px;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0.15;
+}
+.corner-deco.tl { top: 0; left: 0; border-top: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+.corner-deco.tr { top: 0; right: 0; border-top: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+.corner-deco.bl { bottom: 0; left: 0; border-bottom: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+.corner-deco.br { bottom: 0; right: 0; border-bottom: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+
+/* ===== Seal ===== */
+.seal {
+  position: fixed;
+  bottom: 2rem;
+  right: 2.5rem;
+  z-index: 50;
+  width: 52px; height: 52px;
+  background: var(--red-seal);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  line-height: 1.2;
+  opacity: 0.6;
+  box-shadow: 0 2px 12px rgba(184, 54, 46, 0.3);
+  transform: rotate(-3deg);
+  pointer-events: none;
+}
+
+/* ===== Book View ===== */
+#book-view {
+  background: radial-gradient(ellipse at center, #1a1410 0%, #080604 70%);
+  overflow: hidden;
+}
+
+#book-view::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse at 25% 30%, rgba(200, 168, 75, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 75% 70%, rgba(184, 54, 46, 0.03) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.book-stage {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 900px; max-width: 95%;
+  height: 600px; max-height: 80%;
+  z-index: 1;
+  perspective: 2500px;
+}
+
+.book {
+  position: relative;
+  width: 100%; height: 100%;
+}
+
+/* Book base (left half + right half) — visible underneath the pages */
+.book-base {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: flex;
+  z-index: 1;
+}
+
+.book-base-left, .book-base-right {
+  width: 50%; height: 100%;
+  background: linear-gradient(135deg, #2a2218, #1a140e);
+  border: 1px solid rgba(196, 168, 120, 0.15);
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+.book-base-left {
+  border-radius: 6px 0 0 6px;
+  box-shadow: inset 10px 0 40px rgba(0, 0, 0, 0.5), -3px 3px 12px rgba(0, 0, 0, 0.4);
+}
+
+.book-base-right {
+  border-radius: 0 6px 6px 0;
+  box-shadow: inset -10px 0 40px rgba(0, 0, 0, 0.5), 3px 3px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Book pages container */
+.book-pages {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 10;
+}
+
+.book-spine {
+  position: absolute;
+  top: 0; left: 50%;
+  width: 6px; height: 100%;
+  transform: translateX(-50%);
+  background: linear-gradient(to right,
+    rgba(0,0,0,0.7) 0%,
+    rgba(0,0,0,0.4) 30%,
+    rgba(196,168,120,0.15) 50%,
+    rgba(0,0,0,0.4) 70%,
+    rgba(0,0,0,0.7) 100%);
+  z-index: 60;
+  pointer-events: none;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Pages — stacked on right side, flip to left.
+   Each page has its own perspective so we avoid preserve-3d on parent
+   (which breaks z-index stacking). */
+.book-page {
+  position: absolute;
+  top: 0; left: 50%;
+  width: 50%; height: 100%;
+  perspective: 1800px;
+  cursor: pointer;
+}
+
+.book-page-inner {
+  position: relative;
+  width: 100%; height: 100%;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transition: transform 0.9s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.book-page.flipped .book-page-inner {
+  transform: rotateY(-180deg);
+}
+
+.book-page.flipping {
+  z-index: 100 !important;
+}
+
+.book-page-face {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  padding: 1.8rem 1.4rem;
+  box-sizing: border-box;
+}
+
+.book-page-front {
+  background: linear-gradient(135deg, #2a2218, #1a140e);
+  border-radius: 0 6px 6px 0;
+  box-shadow: inset -8px 0 30px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(196, 168, 120, 0.15);
+  border-left: none;
+}
+
+.book-page-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(225deg, #2a2218, #1a140e);
+  border-radius: 6px 0 0 6px;
+  box-shadow: inset 8px 0 30px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(196, 168, 120, 0.15);
+  border-right: none;
+}
+
+/* Page gradient overlay for depth */
+.book-page-front::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 30px; height: 100%;
+  background: linear-gradient(to left, rgba(0,0,0,0.25), transparent);
+  pointer-events: none;
+}
+
+.book-page-back::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 30px; height: 100%;
+  background: linear-gradient(to right, rgba(0,0,0,0.25), transparent);
+  pointer-events: none;
+}
+
+/* Page content */
+.page-num {
+  position: absolute;
+  bottom: 1rem;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  letter-spacing: 0.15em;
+}
+.book-page-front .page-num { right: 1.5rem; }
+.book-page-back .page-num { left: 1.5rem; }
+
+.page-chapter {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.72rem;
+  color: var(--gold-dim);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.page-title {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 1.5rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.8rem;
+  line-height: 1.3;
+}
+
+.page-era-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: var(--text-light);
+  padding: 0.15rem 0.6rem;
+  border-radius: 2px;
+  margin-bottom: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+.page-body {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.9;
+  text-align: justify;
+  text-indent: 1.6rem;
+}
+
+.page-body p { margin-bottom: 0.6rem; }
+
+.page-annotation {
+  margin-top: 1rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(196, 168, 75, 0.06);
+  border-left: 2px solid var(--gold-dim);
+  border-radius: 0 3px 3px 0;
+}
+
+.page-annotation-label {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.65rem;
+  color: var(--gold);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+
+.page-annotation-text {
+  font-size: 0.72rem;
+  color: var(--text-mute);
+  line-height: 1.7;
+  font-style: italic;
+}
+
+.page-quote {
+  margin: 0.8rem 0;
+  padding: 0.6rem 0.9rem;
+  border-left: 2px solid var(--red-seal);
+  background: rgba(184, 54, 46, 0.05);
+}
+
+.page-quote-text {
+  font-size: 0.78rem;
+  color: var(--text-light);
+  line-height: 1.8;
+  font-style: italic;
+}
+
+.page-quote-source {
+  font-size: 0.68rem;
+  color: var(--text-mute);
+  margin-top: 0.3rem;
+  text-align: right;
+}
+
+.page-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.8rem 0;
+}
+
+.page-stat {
+  background: rgba(196, 168, 75, 0.08);
+  border: 1px solid rgba(196, 168, 120, 0.2);
+  padding: 0.3rem 0.6rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.page-stat strong {
+  color: var(--gold-bright);
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+}
+
+.page-building-link {
+  display: block;
+  margin-top: 0.8rem;
+  text-align: center;
+  background: linear-gradient(135deg, var(--wood-dark), var(--wood-mid));
+  border: 1px solid var(--gold-dim);
+  color: var(--gold-bright);
+  padding: 0.5rem 1rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.3s;
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+}
+.page-building-link:hover {
+  background: linear-gradient(135deg, var(--wood-mid), var(--wood-light));
+  box-shadow: 0 0 16px rgba(212, 168, 75, 0.3);
+}
+
+/* Cover page */
+.book-cover {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  position: relative;
+}
+
+.book-cover-glyph {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 5rem;
+  color: var(--gold);
+  text-shadow: 0 0 30px rgba(212, 168, 75, 0.3);
+  margin-bottom: 0.5rem;
+}
+
+.book-cover-title {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 2rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.2em;
+  margin-bottom: 0.4rem;
+}
+
+.book-cover-sub {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.8rem;
+  color: var(--text-mute);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+}
+
+.book-cover-desc {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.8;
+  max-width: 280px;
+  margin-bottom: 1.5rem;
+}
+
+.book-cover-seal {
+  width: 48px; height: 48px;
+  background: var(--red-seal);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.9);
+  text-align: center;
+  line-height: 1.2;
+  opacity: 0.8;
+  transform: rotate(-3deg);
+}
+
+/* Book nav */
+.book-nav {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  z-index: 10;
+}
+
+.book-nav-btn {
+  background: rgba(19, 24, 32, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(196, 168, 120, 0.2);
+  color: var(--text-dim);
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-nav-btn:hover {
+  color: var(--gold-bright);
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 16px rgba(212, 168, 75, 0.2);
+}
+
+.book-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.book-nav-info {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.8rem;
+  color: var(--text-mute);
+  letter-spacing: 0.15em;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Page corner curl hint */
+.page-corner-hint {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, transparent 50%, rgba(196,168,120,0.15) 50%);
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.book-page-front:hover .page-corner-hint {
+  opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+  #legend { display: none; }
+  .header-title { font-size: 1.4rem; }
+  .marker-label { font-size: 11px; }
+  #info-card { flex-direction: column; text-align: center; }
+  .era-buildings { padding-left: 0; }
+  .book-page { left: 0; width: 100%; }
+  .book-stage { height: 500px; }
+}
+</style>
+</head>
+<body>
+
+<div class="corner-deco tl"></div>
+<div class="corner-deco tr"></div>
+<div class="corner-deco bl"></div>
+<div class="corner-deco br"></div>
+
+<!-- ===== Header ===== -->
+<div id="header">
+  <div class="header-content">
+    <div class="header-left">
+      <div class="header-title">山西古建 · 三维全景</div>
+      <div class="header-sub">Shanxi Ancient Architecture · 3D Panorama</div>
+    </div>
+    <div class="header-right">
+      <div class="stat-block">
+        <div class="stat-num">12</div>
+        <div class="stat-label">古 建 筑</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">6</div>
+        <div class="stat-label">时 代</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">1500+</div>
+        <div class="stat-label">年 跨 度</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== View Toggle ===== -->
+<div id="view-toggle">
+  <button class="view-btn active" data-view="map">地图</button>
+  <button class="view-btn" data-view="timeline">时间轴</button>
+  <button class="view-btn" data-view="book">书页</button>
+  <button class="view-btn" data-view="grid">卡片</button>
+</div>
+
+<!-- ===== Map View ===== -->
+<div id="map-view" class="view active">
+  <svg id="shanxi-svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet">
+    <g id="city-paths"></g>
+    <!-- 河流已移除 -->
+    <g id="markers"></g>
+  </svg>
+
+  <div id="legend">
+    <div class="legend-title">朝代图例</div>
+    <div class="legend-items">
+      <div class="legend-item"><span class="legend-dot tang"></span>唐 (782-907)</div>
+      <div class="legend-item"><span class="legend-dot liao"></span>辽 (907-1125)</div>
+      <div class="legend-item"><span class="legend-dot wudai"></span>五代 (907-960)</div>
+      <div class="legend-item"><span class="legend-dot song"></span>宋 (960-1279)</div>
+      <div class="legend-item"><span class="legend-dot jin"></span>金 (1115-1234)</div>
+      <div class="legend-item"><span class="legend-dot ming"></span>明 (1368-1644)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Timeline View ===== -->
+<div id="timeline-view" class="view">
+  <div class="timeline-container" id="timeline-container"></div>
+</div>
+
+<!-- ===== Grid View ===== -->
+<div id="grid-view" class="view">
+  <div class="grid-container" id="grid-container"></div>
+</div>
+
+<!-- ===== Book View ===== -->
+<div id="book-view" class="view">
+  <div class="book-stage">
+    <div class="book" id="book">
+      <div class="book-base">
+        <div class="book-base-left" id="book-base-left"></div>
+        <div class="book-base-right" id="book-base-right"></div>
+      </div>
+      <div class="book-spine"></div>
+      <div class="book-pages" id="book-pages"></div>
+    </div>
+    <div class="book-nav">
+      <button class="book-nav-btn" id="book-prev">‹</button>
+      <span class="book-nav-info" id="book-info">1 / 14</span>
+      <button class="book-nav-btn" id="book-next">›</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Info Card ===== -->
+<div id="info-card">
+  <div class="card-visual" id="card-visual">塔</div>
+  <div class="card-content">
+    <div class="card-header">
+      <div class="card-name" id="card-name">应县木塔</div>
+      <div class="card-era" id="card-era">LIAO · 1056</div>
+    </div>
+    <div class="card-location" id="card-location">📍 朔州市应县</div>
+    <div class="card-desc" id="card-desc">世界最高木塔...</div>
+    <div class="card-data" id="card-data"></div>
+    <div class="card-actions">
+      <button class="btn-enter" id="btn-enter">进入3D模型 →</button>
+      <button class="btn-close-card" id="btn-close-card">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="footer">
+  <div class="footer-text" id="footer-text">点击地图标记查看详情 · 进入3D模型浏览</div>
+</div>
+
+<div class="seal">山西<br>古建</div>
+
+<script src="shanxi-city-paths.js"></script>
+<script>
+// ===== Building Data =====
+const BUILDINGS = [
+  {
+    id: 'yingxian-pagoda', name: '应县木塔', fullName: '佛宫寺释迦塔', char: '塔',
+    era: 'liao', eraLabel: '辽 · 1056', eraShort: '辽', year: 1056,
+    location: '朔州市应县', city: '朔州',
+    desc: '世界最高最古老的木塔，纯木榫卯结构，无一根铁钉。67.31米高，59种斗拱，世界建筑史奇迹。',
+    significance: '世界最高木塔 · 辽代建筑巅峰',
+    x: 540, y: 240,
+    data: [
+      { label: '高度', value: '67.31m' }, { label: '层数', value: '五明四暗' },
+      { label: '斗拱', value: '59种' }, { label: '建造', value: '辽清宁二年' },
+    ],
+    url: './yingxian-pagoda-3d/index.html',
+  },
+  {
+    id: 'hanging-temple', name: '悬空寺', fullName: '悬空寺（玄空阁）', char: '悬',
+    era: 'ming', eraLabel: '北魏始建 · 现存明清', eraShort: '北魏', year: 491,
+    location: '大同市浑源县', city: '大同',
+    desc: '悬挂于恒山翠屏峰半崖，佛道儒三教合一。27根横梁深入岩壁，全球十大奇险建筑。',
+    significance: '全球十大奇险建筑 · 三教合一',
+    x: 520, y: 165,
+    data: [
+      { label: '距地面', value: '约50m' }, { label: '面积', value: '152.5㎡' },
+      { label: '殿阁', value: '40间' }, { label: '横梁', value: '27根' },
+    ],
+    url: './hanging-temple-3d/index.html',
+  },
+  {
+    id: 'foguangsi', name: '佛光寺东大殿', fullName: '五台佛光寺东大殿', char: '佛',
+    era: 'tang', eraLabel: '唐 · 857', eraShort: '唐', year: 857,
+    location: '忻州市五台县', city: '忻州',
+    desc: '中国现存最大最完整的唐代木构建筑，梁思成誉为"中国第一国宝"。七铺作双杪双下昂斗拱，唐代彩塑35尊。',
+    significance: '中国第一国宝 · 唐代木构最大',
+    x: 490, y: 280,
+    data: [
+      { label: '面阔', value: '七间34m' }, { label: '进深', value: '四间17.7m' },
+      { label: '斗拱', value: '七铺作' }, { label: '彩塑', value: '35尊' },
+    ],
+    url: './foguangsi-3d/index.html',
+  },
+  {
+    id: 'nanchansi', name: '南禅寺大佛殿', fullName: '五台南禅寺大佛殿', char: '南',
+    era: 'tang', eraLabel: '唐 · 782', eraShort: '唐', year: 782,
+    location: '忻州市五台县', city: '忻州',
+    desc: '中国现存最古老的木构建筑，唐建中三年重建。屋顶举折最平缓，17尊唐代彩塑（华严三圣）。',
+    significance: '中国现存最古老木构建筑',
+    x: 470, y: 310,
+    data: [
+      { label: '面阔', value: '三间11.75m' }, { label: '进深', value: '三间10m' },
+      { label: '斗拱', value: '五铺作双抄' }, { label: '彩塑', value: '14尊现存' },
+    ],
+    url: './nanchansi-3d/index.html',
+  },
+  {
+    id: 'huayansi', name: '华严寺', fullName: '大同华严寺', char: '华',
+    era: 'liao', eraLabel: '辽 · 1038', eraShort: '辽', year: 1038,
+    location: '大同市平城区', city: '大同',
+    desc: '中国现存三大辽代寺院之一。大雄宝殿面阔九间，薄伽教藏殿天宫楼阁被誉为"海内孤品"，辽代彩塑精美绝伦。',
+    significance: '海内孤品天宫楼阁 · 东方维纳斯',
+    x: 505, y: 140,
+    data: [
+      { label: '大殿面阔', value: '九间53.75m' }, { label: '大殿高', value: '23.18m' },
+      { label: '天宫楼阁', value: '海内孤品' }, { label: '彩塑', value: '合掌露齿菩萨' },
+    ],
+    url: './huayansi-3d/index.html',
+  },
+  {
+    id: 'shanhuasi', name: '善化寺', fullName: '大同善化寺', char: '善',
+    era: 'liao', eraLabel: '辽金 · 11世纪', eraShort: '辽金', year: 1000,
+    location: '大同市平城区', city: '大同',
+    desc: '中国现存规模最大、最完整的辽金建筑群。大雄宝殿辽代原构，三圣殿金代斜拱如花，二十四诸天塑像。',
+    significance: '现存最大最完整辽金建筑群',
+    x: 510, y: 155,
+    data: [
+      { label: '大殿', value: '面阔七间' }, { label: '时代', value: '辽金并存' },
+      { label: '三圣殿', value: '斜拱如花' }, { label: '塑像', value: '二十四诸天' },
+    ],
+    url: './shanhuasi-3d/index.html',
+  },
+  {
+    id: 'jinci', name: '晋祠圣母殿', fullName: '太原晋祠圣母殿', char: '晋',
+    era: 'song', eraLabel: '宋 · 1023-1032', eraShort: '宋', year: 1023,
+    location: '太原市晋源区', city: '太原',
+    desc: '中国现存最早的皇家祭祀园林。重檐歇山顶，副阶周匝最早实例，八根宋代木雕盘龙柱，43尊宋代彩塑。',
+    significance: '副阶周匝最早实例 · 宋代盘龙柱',
+    x: 440, y: 260,
+    data: [
+      { label: '通高', value: '19m' }, { label: '面阔', value: '七间31m' },
+      { label: '盘龙柱', value: '八根·最早' }, { label: '彩塑', value: '43尊宋代' },
+    ],
+    url: './jinci-3d/index.html',
+  },
+  {
+    id: 'chongfusi', name: '崇福寺弥陀殿', fullName: '朔州崇福寺弥陀殿', char: '崇',
+    era: 'jin', eraLabel: '金 · 1143', eraShort: '金', year: 1143,
+    location: '朔州市朔城区', city: '朔州',
+    desc: '金代建筑典范，减柱造手法大胆创新。绿色琉璃剪边，鸱吻高3米，隔扇窗棂精美，金代彩塑壁画保存完好。',
+    significance: '金代建筑典范 · 减柱造创新',
+    x: 500, y: 230,
+    data: [
+      { label: '面阔', value: '七间约40m' }, { label: '鸱吻', value: '高3m' },
+      { label: '手法', value: '减柱造' }, { label: '保存', value: '金代原构' },
+    ],
+    url: './chongfusi-3d/index.html',
+  },
+  {
+    id: 'shuanglinsi', name: '双林寺', fullName: '平遥双林寺', char: '双',
+    era: 'ming', eraLabel: '明清 · 重建于571', eraShort: '明清', year: 571,
+    location: '晋中市平遥县', city: '晋中',
+    desc: '东方彩塑艺术宝库。现存彩塑2056尊，韦驮像为中国彩塑经典中的经典，五百菩萨壁画精美绝伦。',
+    significance: '东方彩塑艺术宝库 · 2056尊',
+    x: 460, y: 330,
+    data: [
+      { label: '彩塑', value: '2056尊' }, { label: '面积', value: '约15000㎡' },
+      { label: '韦驮像', value: '彩塑经典' }, { label: '布局', value: '三进院落' },
+    ],
+    url: './shuanglinsi-3d/index.html',
+  },
+  {
+    id: 'zhenguosi', name: '镇国寺万佛殿', fullName: '平遥镇国寺万佛殿', char: '镇',
+    era: 'wudai', eraLabel: '五代 · 963', eraShort: '五代', year: 963,
+    location: '晋中市平遥县', city: '晋中',
+    desc: '中国仅存的三处五代建筑之一。万佛殿五代原构，斗拱硕大超过柱高2/3，11尊五代彩塑全国唯一。',
+    significance: '全国唯一五代彩塑 · 斗拱硕大',
+    x: 465, y: 310,
+    data: [
+      { label: '面阔', value: '三间11.58m' }, { label: '斗拱', value: '七铺作·硕大' },
+      { label: '五代彩塑', value: '11尊·唯一' }, { label: '始建', value: '北汉天会七年' },
+    ],
+    url: './zhenguosi-3d/index.html',
+  },
+  {
+    id: 'feiyunlou', name: '万荣飞云楼', fullName: '万荣东岳庙飞云楼', char: '飞',
+    era: 'ming', eraLabel: '明 · 正德年间重建', eraShort: '明', year: 1500,
+    location: '运城市万荣县', city: '运城',
+    desc: '中华第一木楼，与应县木塔并称"南楼北塔"。纯木榫卯无钉，三层四檐十字歇山顶，345组斗拱如云朵簇聚。',
+    significance: '中华第一木楼 · 南楼北塔',
+    x: 470, y: 440,
+    data: [
+      { label: '通高', value: '约23.19m' }, { label: '斗拱', value: '345组' },
+      { label: '屋顶', value: '十字歇山' }, { label: '结构', value: '纯木无钉' },
+    ],
+    url: './feiyunlou-3d/index.html',
+  },
+  {
+    id: 'feihongta', name: '广胜寺飞虹塔', fullName: '洪洞广胜寺飞虹塔', char: '虹',
+    era: 'ming', eraLabel: '明 · 1527重建', eraShort: '明', year: 1527,
+    location: '临汾市洪洞县', city: '临汾',
+    desc: '世界最高的多彩琉璃塔，中国现存最大最完整琉璃塔。八角十三级，高47.31米，外壁全部彩色琉璃装饰。',
+    significance: '世界最高多彩琉璃塔',
+    x: 440, y: 370,
+    data: [
+      { label: '通高', value: '47.31m' }, { label: '层数', value: '十三级' },
+      { label: '形式', value: '八角楼阁式' }, { label: '装饰', value: '多彩琉璃' },
+    ],
+    url: './feihongta-3d/index.html',
+  },
+];
+
+const eraColors = {
+  tang: '#c87a3a', liao: '#8a6a3a', wudai: '#7a6a4a',
+  song: '#5a8a4a', jin: '#6a5a8a', ming: '#b8983a',
+};
+
+const eraInfo = {
+  tang: { name: '唐', dates: '618 — 907', en: 'TANG DYNASTY', desc: '雄浑大气，出檐深远，斗拱硕大。中国木构建筑的奠基时代，现存仅三座半唐构，山西独占其三。' },
+  wudai: { name: '五代', dates: '907 — 960', en: 'FIVE DYNASTIES', desc: '承唐启宋，过渡短暂但弥足珍贵。全国仅存三处五代建筑，山西镇国寺万佛殿即其一。' },
+  liao: { name: '辽', dates: '907 — 1125', en: 'LIAO DYNASTY', desc: '契丹王朝承袭唐风，建筑雄浑粗犷。山西大同、朔州一线保存了辽代建筑的精华，斗拱宏大，气势恢宏。' },
+  song: { name: '宋', dates: '960 — 1279', en: 'SONG DYNASTY', desc: '精巧柔美，法式完备。《营造法式》问世，建筑走向规范化与艺术化。晋祠圣母殿为宋代建筑典范。' },
+  jin: { name: '金', dates: '1115 — 1234', en: 'JIN DYNASTY', desc: '承辽宋之风，减柱造大胆创新。崇福寺弥陀殿为金代建筑标杆，琉璃、彩塑、壁画三绝并存。' },
+  ming: { name: '明', dates: '1368 — 1644', en: 'MING DYNASTY', desc: '工艺精湛，琉璃鼎盛。飞云楼纯木无钉，飞虹塔多彩琉璃冠绝天下。彩塑艺术在双林寺达到巅峰。' },
+};
+
+// ===== Render Map Cities =====
+const cityPathsGroup = document.getElementById('city-paths');
+
+function renderMapCities() {
+  if (!cityPathsGroup || typeof SHANXI_CITY_PATHS === 'undefined') return;
+  cityPathsGroup.innerHTML = '';
+  Object.entries(SHANXI_CITY_PATHS).forEach(([cityName, cityData]) => {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.classList.add('city-path');
+    path.setAttribute('d', cityData.d);
+    path.dataset.city = cityName;
+    path.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchToCity(cityName);
+    });
+    cityPathsGroup.appendChild(path);
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.classList.add('city-label');
+    label.setAttribute('x', cityData.center[0]);
+    label.setAttribute('y', cityData.center[1] - 8);
+    label.textContent = cityName.replace('市', '');
+    cityPathsGroup.appendChild(label);
+  });
+}
+
+// ===== Map Zoom & Pan System =====
+const svgEl = document.getElementById('shanxi-svg');
+const VB_BASE = { x: 0, y: 0, w: 1000, h: 700 };
+// 初始聚焦视图：直接框住全部古建标记，一进来即可看全所有点位（无需手动缩放）
+const VB_HOME = { x: 105, y: 20, w: 771, h: 540 };
+let vbState = { x: 0, y: 0, w: 1000, h: 700 };
+let activeCity = null;
+
+function setViewBox(vb, animate = true) {
+  if (animate) {
+    svgEl.style.transition = 'viewBox 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)';
+  } else {
+    svgEl.style.transition = 'none';
+  }
+  vbState = { ...vb };
+  svgEl.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  updateZoomControls();
+}
+
+function clampVB(vb) {
+  // Prevent over-pan and over-zoom
+  const minW = 120, maxW = 1200;
+  const minH = 84, maxH = 840;
+  vb.w = Math.max(minW, Math.min(maxW, vb.w));
+  vb.h = Math.max(minH, Math.min(maxH, vb.h));
+  vb.x = Math.max(-50, Math.min(1050 - vb.w, vb.x));
+  vb.y = Math.max(-30, Math.min(730 - vb.h, vb.y));
+  return vb;
+}
+
+// ===== Wheel Zoom (centered on cursor) =====
+svgEl.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = svgEl.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / rect.width;
+  const my = (e.clientY - rect.top) / rect.height;
+
+  const factor = e.deltaY > 0 ? 1.15 : 0.87;
+  const newW = vbState.w * factor;
+  const newH = vbState.h * factor;
+
+  // Zoom toward cursor position
+  const cx = vbState.x + mx * vbState.w;
+  const cy = vbState.y + my * vbState.h;
+  const newX = cx - mx * newW;
+  const newY = cy - my * newH;
+
+  clampVB({ x: newX, y: newY, w: newW, h: newH });
+  const clamped = clampVB({ x: newX, y: newY, w: newW, h: newH });
+  setViewBox(clamped, false);
+  clearCityHighlight();
+}, { passive: false });
+
+// ===== Drag Pan =====
+let isDragging = false;
+let dragStart = { x: 0, y: 0, vbX: 0, vbY: 0 };
+
+svgEl.addEventListener('mousedown', (e) => {
+  if (e.target.closest('.marker-group')) return; // don't drag on markers
+  isDragging = true;
+  dragStart = { x: e.clientX, y: e.clientY, vbX: vbState.x, vbY: vbState.y };
+  svgEl.style.transition = 'none';
+  svgEl.style.cursor = 'grabbing';
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const rect = svgEl.getBoundingClientRect();
+  const scale = vbState.w / rect.width;
+  const dx = (e.clientX - dragStart.x) * scale;
+  const dy = (e.clientY - dragStart.y) * scale;
+  const clamped = clampVB({ x: dragStart.vbX - dx, y: dragStart.vbY - dy, w: vbState.w, h: vbState.h });
+  vbState = clamped;
+  svgEl.setAttribute('viewBox', `${clamped.x} ${clamped.y} ${clamped.w} ${clamped.h}`);
+});
+
+window.addEventListener('mouseup', () => {
+  if (isDragging) {
+    isDragging = false;
+    svgEl.style.cursor = 'grab';
+  }
+});
+
+// Touch support
+let touchState = null;
+svgEl.addEventListener('touchstart', (e) => {
+  if (e.target.closest('.marker-group')) return;
+  if (e.touches.length === 1) {
+    touchState = { type: 'pan', x: e.touches[0].clientX, y: e.touches[0].clientY, vbX: vbState.x, vbY: vbState.y };
+  } else if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    touchState = { type: 'pinch', dist: Math.hypot(dx, dy), vb: { ...vbState } };
+  }
+}, { passive: false });
+
+svgEl.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (!touchState) return;
+  const rect = svgEl.getBoundingClientRect();
+  if (touchState.type === 'pan' && e.touches.length === 1) {
+    const scale = vbState.w / rect.width;
+    const dx = (e.touches[0].clientX - touchState.x) * scale;
+    const dy = (e.touches[0].clientY - touchState.y) * scale;
+    const clamped = clampVB({ x: touchState.vbX - dx, y: touchState.vbY - dy, w: vbState.w, h: vbState.h });
+    vbState = clamped;
+    svgEl.setAttribute('viewBox', `${clamped.x} ${clamped.y} ${clamped.w} ${clamped.h}`);
+  } else if (touchState.type === 'pinch' && e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const newDist = Math.hypot(dx, dy);
+    const factor = touchState.dist / newDist;
+    const newW = touchState.vb.w * factor;
+    const newH = touchState.vb.h * factor;
+    const clamped = clampVB({ x: touchState.vb.x + (touchState.vb.w - newW) / 2, y: touchState.vb.y + (touchState.vb.h - newH) / 2, w: newW, h: newH });
+    setViewBox(clamped, false);
+  }
+}, { passive: false });
+
+svgEl.addEventListener('touchend', () => { touchState = null; });
+
+// ===== City Click → Zoom =====
+function switchToCity(cityName) {
+  const cityData = SHANXI_CITY_PATHS[cityName];
+  if (!cityData) return;
+  activeCity = cityName;
+
+  // Highlight this city, dim others
+  document.querySelectorAll('.city-path').forEach(p => {
+    if (p.dataset.city === cityName) {
+      p.classList.add('active');
+    } else {
+      p.style.opacity = '0.15';
+    }
+  });
+
+  const [cx, cy] = cityData.center;
+  const zoomW = 260, zoomH = 200;
+  const vb = clampVB({ x: cx - zoomW/2, y: cy - zoomH/2, w: zoomW, h: zoomH });
+  setViewBox(vb, true);
+  showBackButton();
+}
+
+function clearCityHighlight() {
+  if (!activeCity) return;
+  activeCity = null;
+  document.querySelectorAll('.city-path').forEach(p => {
+    p.classList.remove('active');
+    p.style.opacity = '';
+  });
+  hideBackButton();
+}
+
+function backToProvince() {
+  setViewBox({ ...VB_HOME }, true);   // 返回古建标记全览
+  clearCityHighlight();
+}
+
+// ===== Zoom Control Buttons =====
+function updateZoomControls() {
+  const z = VB_BASE.w / vbState.w;
+  const pct = Math.round(z * 100);
+  const label = document.getElementById('zoom-level');
+  if (label) label.textContent = pct + '%';
+}
+
+function createZoomControls() {
+  const container = document.createElement('div');
+  container.id = 'zoom-controls';
+  container.style.cssText = 'position:fixed;right:1.5rem;bottom:5rem;z-index:50;display:flex;flex-direction:column;gap:0.4rem;align-items:center;';
+
+  const makeBtn = (text, fn) => {
+    const btn = document.createElement('button');
+    btn.textContent = text;
+    btn.style.cssText = 'width:38px;height:38px;border-radius:6px;background:rgba(19,24,32,0.8);backdrop-filter:blur(8px);border:1px solid rgba(196,168,120,0.2);color:var(--gold-bright);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;font-family:serif;';
+    btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(58,42,24,0.6)'; btn.style.borderColor = 'rgba(196,168,120,0.5)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'rgba(19,24,32,0.8)'; btn.style.borderColor = 'rgba(196,168,120,0.2)'; });
+    btn.addEventListener('click', fn);
+    return btn;
+  };
+
+  const zoomIn = makeBtn('+', () => {
+    const cx = vbState.x + vbState.w/2;
+    const cy = vbState.y + vbState.h/2;
+    const newW = vbState.w * 0.7;
+    const newH = vbState.h * 0.7;
+    setViewBox(clampVB({ x: cx - newW/2, y: cy - newH/2, w: newW, h: newH }), true);
+  });
+
+  const zoomOut = makeBtn('−', () => {
+    const cx = vbState.x + vbState.w/2;
+    const cy = vbState.y + vbState.h/2;
+    const newW = vbState.w * 1.43;
+    const newH = vbState.h * 1.43;
+    setViewBox(clampVB({ x: cx - newW/2, y: cy - newH/2, w: newW, h: newH }), true);
+  });
+
+  const reset = makeBtn('⤢', () => {
+    setViewBox({ ...VB_HOME }, true);
+    clearCityHighlight();
+  });
+  reset.style.fontSize = '1.3rem';
+
+  const level = document.createElement('div');
+  level.id = 'zoom-level';
+  level.style.cssText = 'font-size:0.65rem;color:rgba(196,168,120,0.5);font-family:"Cormorant Garamond",serif;text-align:center;';
+  level.textContent = '100%';
+
+  container.appendChild(zoomIn);
+  container.appendChild(level);
+  container.appendChild(zoomOut);
+  container.appendChild(reset);
+  document.body.appendChild(container);
+}
+
+function showBackButton() {
+  let btn = document.getElementById('back-to-province');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'back-to-province';
+    btn.textContent = '← 返回全省';
+    btn.style.cssText = 'position:fixed;top:5.5rem;left:2.5rem;z-index:100;background:rgba(19,24,32,0.85);backdrop-filter:blur(8px);border:1px solid rgba(196,168,120,0.3);border-radius:4px;padding:0.5rem 1rem;color:var(--gold-bright);font-family:"Noto Serif SC",serif;font-size:0.85rem;cursor:pointer;transition:all 0.3s;opacity:0;transform:translateY(-10px);';
+    btn.addEventListener('click', backToProvince);
+    document.body.appendChild(btn);
+    requestAnimationFrame(() => {
+      btn.style.opacity = '1';
+      btn.style.transform = 'translateY(0)';
+    });
+  }
+}
+
+function hideBackButton() {
+  const btn = document.getElementById('back-to-province');
+  if (btn) {
+    btn.style.opacity = '0';
+    btn.style.transform = 'translateY(-10px)';
+    setTimeout(() => btn.remove(), 300);
+  }
+}
+
+// Initialize zoom controls after DOM ready
+createZoomControls();
+// 初始即聚焦到古建标记全览视图
+setViewBox({ ...VB_HOME }, false);
+
+// ===== Render Map Markers =====
+const markersGroup = document.getElementById('markers');
+
+BUILDINGS.forEach(b => {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add('marker-group');
+  g.setAttribute('transform', `translate(${b.x}, ${b.y})`);
+  g.dataset.buildingId = b.id;
+
+  const color = eraColors[b.era] || '#9a7848';
+
+  const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  pulse.classList.add('marker-pulse');
+  pulse.setAttribute('cx', '0'); pulse.setAttribute('cy', '0');
+  pulse.setAttribute('r', '8'); pulse.setAttribute('stroke', color);
+  g.appendChild(pulse);
+
+  const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  ring.classList.add('marker-ring');
+  ring.setAttribute('cx', '0'); ring.setAttribute('cy', '0');
+  ring.setAttribute('r', '11'); ring.setAttribute('stroke', color);
+  g.appendChild(ring);
+
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dot.classList.add('marker-dot');
+  dot.setAttribute('cx', '0'); dot.setAttribute('cy', '0');
+  dot.setAttribute('r', '5'); dot.setAttribute('fill', color);
+  dot.style.color = color;
+  g.appendChild(dot);
+
+  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  label.classList.add('marker-label');
+  label.setAttribute('x', '0'); label.setAttribute('y', '-15');
+  label.setAttribute('text-anchor', 'middle');
+  label.textContent = b.name;
+  g.appendChild(label);
+
+  const eraText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  eraText.classList.add('marker-era');
+  eraText.setAttribute('x', '0'); eraText.setAttribute('y', '22');
+  eraText.setAttribute('text-anchor', 'middle');
+  eraText.textContent = b.eraShort;
+  g.appendChild(eraText);
+
+  g.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showInfoCard(b);
+  });
+
+  markersGroup.appendChild(g);
+});
+
+// (City labels are rendered by renderMapCities() — no duplicate labels here)
+
+// ===== Info Card =====
+const infoCard = document.getElementById('info-card');
+let currentBuilding = null;
+
+function showInfoCard(building) {
+  currentBuilding = building;
+  document.getElementById('card-visual').textContent = building.char;
+  document.getElementById('card-name').textContent = building.name;
+  document.getElementById('card-era').textContent = building.eraLabel;
+  document.getElementById('card-location').textContent = '📍 ' + building.location;
+  document.getElementById('card-desc').textContent = building.desc;
+  document.getElementById('card-data').innerHTML = building.data.map(d =>
+    `<div class="data-pill"><strong>${d.value}</strong> ${d.label}</div>`
+  ).join('');
+  infoCard.classList.add('visible');
+}
+
+document.getElementById('btn-close-card').addEventListener('click', () => {
+  infoCard.classList.remove('visible');
+  currentBuilding = null;
+});
+
+document.getElementById('btn-enter').addEventListener('click', () => {
+  if (currentBuilding) {
+    window.open(currentBuilding.url, '_blank');
+  }
+});
+
+// ===== View Switching =====
+const views = { map: 'map-view', timeline: 'timeline-view', book: 'book-view', grid: 'grid-view' };
+const footerTexts = {
+  map: '点击地图标记查看详情 · 进入3D模型浏览',
+  timeline: '沿中国古建筑史时间轴 · 点击卡片进入3D模型',
+  book: '翻阅古建筑史书 · 点击右侧页面翻页 · 进入3D模型',
+  grid: '点击卡片进入3D模型浏览',
+};
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const viewName = btn.dataset.view;
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(views[viewName]).classList.add('active');
+    document.getElementById('footer-text').textContent = footerTexts[viewName];
+    // Hide info card when switching
+    infoCard.classList.remove('visible');
+    // Show legend only on map view
+    document.getElementById('legend').style.display = viewName === 'map' ? 'block' : 'none';
+    if (viewName === 'map') renderMapCities();
+    if (viewName === 'timeline') renderTimeline();
+    if (viewName === 'book') renderBook();
+    if (viewName === 'grid') renderGrid();
+  });
+});
+
+// ===== Render Timeline =====
+function renderTimeline() {
+  const container = document.getElementById('timeline-container');
+  if (container.children.length > 0) return;
+
+  const eraOrder = ['tang', 'wudai', 'liao', 'song', 'jin', 'ming'];
+  const eraBuildings = {};
+  eraOrder.forEach(e => eraBuildings[e] = []);
+  BUILDINGS.forEach(b => {
+    if (eraBuildings[b.era]) eraBuildings[b.era].push(b);
+  });
+
+  let html = `
+    <div class="timeline-title">
+      <h1>中国古建筑史 · 山西遗珍</h1>
+      <p>A Journey Through Chinese Architectural History</p>
+    </div>
+  `;
+
+  eraOrder.forEach(era => {
+    const info = eraInfo[era];
+    const buildings = eraBuildings[era];
+    if (buildings.length === 0) return;
+    const color = eraColors[era];
+
+    html += `
+      <div class="era-section">
+        <div class="era-header">
+          <div class="era-badge ${era}" style="background:${color};box-shadow:0 0 20px ${color}66;">
+            <span>${info.name}</span>
+          </div>
+          <div class="era-info">
+            <h2>${info.name}代建筑</h2>
+            <div class="era-dates">${info.dates} · ${info.en}</div>
+            <div class="era-desc">${info.desc}</div>
+          </div>
+        </div>
+        <div class="era-buildings">
+    `;
+
+    buildings.sort((a, b) => a.year - b.year);
+    buildings.forEach(b => {
+      const yearLabel = b.eraLabel.split('·')[1]?.trim() || b.year;
+      html += `
+          <div class="tl-building-card" data-url="${b.url}">
+            <div class="tl-card-glyph" style="background:linear-gradient(135deg,#1e2530,${color}55);">
+              <span class="tl-card-year">${yearLabel}</span>
+              ${b.char}
+            </div>
+            <div class="tl-card-body">
+              <div class="tl-card-name">${b.name}</div>
+              <div class="tl-card-location">📍 ${b.location}</div>
+              <div class="tl-card-desc">${b.desc}</div>
+              <div class="tl-card-significance">✦ ${b.significance}</div>
+            </div>
+          </div>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+
+  // Bind clicks
+  container.querySelectorAll('.tl-building-card').forEach(card => {
+    card.addEventListener('click', () => {
+      window.open(card.dataset.url, '_blank');
+    });
+  });
+}
+
+// ===== Render Grid =====
+function renderGrid() {
+  const container = document.getElementById('grid-container');
+  if (container.children.length > 0) return;
+
+  BUILDINGS.forEach(b => {
+    const card = document.createElement('div');
+    card.className = 'grid-card';
+    card.innerHTML = `
+      <div class="grid-card-visual" style="background: linear-gradient(135deg, #1e2530, ${eraColors[b.era]}66);">
+        <span class="grid-card-era">${b.eraLabel}</span>
+        ${b.char}
+      </div>
+      <div class="grid-card-body">
+        <div class="grid-card-name">${b.name}</div>
+        <div class="grid-card-location">📍 ${b.location}</div>
+        <div class="grid-card-desc">${b.desc}</div>
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      window.open(b.url, '_blank');
+    });
+    container.appendChild(card);
+  });
+}
+
+// ===== Book View =====
+const BOOK_PAGES = [
+  // Page 0: Cover (right side)
+  {
+    type: 'cover',
+    glyph: '築',
+    title: '山西古建筑史',
+    sub: 'A History of Shanxi Ancient Architecture',
+    desc: '从唐代到明代，跨越一千五百年的木构史诗。十二座古建筑，半部中国建筑史。',
+  },
+  // Page 1: Preface (left) + Tang intro (right)
+  {
+    left: {
+      chapter: 'PREFACE',
+      title: '序言',
+      body: '<p>中国建筑，以木料为主要构材，历用构架制之结构原则，以斗拱为结构关键，外部轮廓特异。</p><p>自汉代以来，中国建筑一脉相承，虽有和缓之变迁，顺序之进展，却始终以独特纯粹之木构系统，随我民族足迹所至，树立文化表志。</p><p>山西表里山河，战乱较少，气候干燥，保存了全国约70%的早期木构建筑。从唐到明，一部山西古建史，几等同半部中国建筑史。</p>',
+      annotation: { label: '注', text: '梁思成《中国建筑史》绪论：「中国建筑乃一独立之结构系统，历史悠长，散布区域辽阔。数千年来无遽变之迹，渗杂之象，一贯以其独特纯粹之木构系统为本。」' },
+      pageNum: '序',
+    },
+    right: {
+      chapter: 'CHAPTER I · 618-907',
+      title: '第一章 隋唐建筑',
+      eraTag: '唐 · 雄浑大气',
+      body: '<p>隋唐时期，中国建筑达到鼎盛。唐代建筑出檐深远，斗拱硕大，可达柱高的二分之一。屋顶举折平缓，气势雄浑。柱身微有卷杀，柱头紧杀作覆盆状。生起与侧脚显著。</p><p>现存唐代木构仅三座半，山西独占其三：南禅寺大佛殿（782年）、佛光寺东大殿（857年），以及半座芮城广仁王庙。其中佛光寺东大殿为中国现存最大最完整的唐代木构建筑。</p>',
+      annotation: { label: '建筑特征', text: '唐代斗拱尺寸最大，可达柱高的1/2。出檐深远，约达柱高的3/5。屋顶举折（坡度）最平缓，约为1/4至1/5。柱径与柱高比约1:9。这些数据至宋代渐变，斗拱缩小、出檐缩短、举折变陡。' },
+      pageNum: '1',
+    },
+  },
+  // Page 2: Nanchansi (left) + Foguangsi (right)
+  {
+    left: {
+      chapter: 'CHAPTER I · 唐代实例',
+      title: '南禅寺大佛殿',
+      eraTag: '唐 · 建中三年（782）',
+      body: '<p>南禅寺大佛殿为中国现存最古老的木构建筑。唐建中三年重建，面阔三间11.75米，进深三间10米，单檐歇山顶。</p><p>屋顶举折极为平缓，约为1:5.2，是唐代建筑举折最平缓的实例。斗拱五铺作双抄，不施补间铺作，简洁有力。</p><p>殿内17尊唐代彩塑，为华严三圣及胁侍菩萨、童子等，是除敦煌外罕见的唐代彩塑遗存。</p>',
+      stats: [
+        { v: '782年', l: '始建' }, { v: '11.75m', l: '面阔' }, { v: '五铺作', l: '斗拱' },
+      ],
+      quote: { text: '屋顶举折最平缓，出檐深远，为唐代建筑之特征。', source: '梁思成《中国建筑史》' },
+      building: { id: 'nanchansi', name: '进入南禅寺3D模型 →' },
+      pageNum: '2',
+    },
+    right: {
+      chapter: 'CHAPTER I · 唐代实例',
+      title: '佛光寺东大殿',
+      eraTag: '唐 · 大中十一年（857）',
+      body: '<p>佛光寺东大殿，中国现存最大最完整的唐代木构建筑。面阔七间34米，进深四间17.7米，单檐庑殿顶。斗拱七铺作双杪双下昂，出跳总长达1.8米。</p><p>1937年6月，梁思成、林徽因率营造学社调查队抵达五台佛光寺。林徽因在大梁上发现墨迹「佛殿主上都送供女弟子宁公遇」，与殿外经幢刻文互证，确认大殿建于唐大中十一年。</p><p>此发现打破了日本学者「中国境内无唐代木建筑」的断言，梁思成誉为「中国第一国宝」。</p>',
+      stats: [
+        { v: '857年', l: '始建' }, { v: '七间34m', l: '面阔' }, { v: '七铺作', l: '斗拱' }, { v: '35尊', l: '唐代彩塑' },
+      ],
+      quote: { text: '这不但是我们多年来实地踏遍所得的唯一唐代木构殿宇，不但是国内古建筑之第一瑰宝，也是我国封建文化遗产中最可珍贵的一件东西。', source: '梁思成' },
+      building: { id: 'foguangsi', name: '进入佛光寺3D模型 →' },
+      pageNum: '3',
+    },
+  },
+  // Page 3: Five Dynasties (left) + Liao intro (right)
+  {
+    left: {
+      chapter: 'CHAPTER II · 907-960',
+      title: '第二章 五代建筑',
+      eraTag: '五代 · 承唐启宋',
+      body: '<p>五代战乱频仍，建筑保存极少。全国仅存三处五代建筑，山西镇国寺万佛殿即其一，建于北汉天会七年（963年）。</p><p>万佛殿斗拱七铺作，硕大异常，高逾柱身的2/3，承唐代遗风。殿内11尊五代彩塑，为全国唯一五代彩塑遗存。</p>',
+      annotation: { label: '过渡特征', text: '五代建筑承袭唐代雄浑风格，同时开启宋代精致化趋势。斗拱仍硕大，但已开始出现简化倾向。镇国寺万佛殿的斗拱高逾柱高2/3，介于唐（1/2）与宋（2/7）之间。' },
+      stats: [
+        { v: '963年', l: '始建' }, { v: '11.58m', l: '面阔' }, { v: '11尊', l: '五代彩塑' },
+      ],
+      building: { id: 'zhenguosi', name: '进入镇国寺3D模型 →' },
+      pageNum: '4',
+    },
+    right: {
+      chapter: 'CHAPTER III · 907-1125',
+      title: '第三章 辽代建筑',
+      eraTag: '辽 · 承唐之风',
+      body: '<p>辽为契丹王朝，建筑承袭唐风，雄浑粗犷。斗拱硕大，出檐深远，柱径粗壮，气势恢宏。与宋代建筑的柔美精致形成鲜明对比。</p><p>山西大同、朔州一线保存了辽代建筑精华：华严寺（1038）、善化寺、应县木塔（1056）。其中应县木塔为世界最高最古老的木塔，纯木榫卯结构，无一根铁钉。</p><p>梁思成称应县木塔：「这塔真是一个独一无二的伟大作品。不见此塔，不知木构的可能性到了什么程度。」</p>',
+      annotation: { label: '辽 vs 宋', text: '辽代建筑直接继承唐制，斗拱硕大、出檐深远。同时期宋代建筑已趋于精致，斗拱缩小、装饰增多。辽代建筑粗犷雄浑，宋代建筑柔和秀丽，南北风格迥异。' },
+      pageNum: '5',
+    },
+  },
+  // Page 4: Huayansi (left) + Yingxian Pagoda (right)
+  {
+    left: {
+      chapter: 'CHAPTER III · 辽代实例',
+      title: '华严寺',
+      eraTag: '辽 · 清宁四年（1038）',
+      body: '<p>华严寺为中国现存三大辽代寺院之一。大雄宝殿面阔九间53.75米，进深五间29米，殿高23.18米，是中国现存最大的辽金佛殿。</p><p>薄伽教藏殿内天宫楼阁，沿壁三十八间，为国内现存最精美的小木作建筑模型，梁思成誉为「海内孤品」。</p><p>殿内合掌露齿菩萨，体态婀娜，微笑含蓄，被誉为「东方维纳斯」。辽代彩塑融合唐之雄浑与契丹民族特色。</p>',
+      stats: [
+        { v: '1038年', l: '始建' }, { v: '九间53.75m', l: '面阔' }, { v: '海内孤品', l: '天宫楼阁' },
+      ],
+      quote: { text: '其妙丽之至，可谓冠绝古今。', source: '梁思成评辽代彩塑' },
+      building: { id: 'huayansi', name: '进入华严寺3D模型 →' },
+      pageNum: '6',
+    },
+    right: {
+      chapter: 'CHAPTER III · 辽代实例',
+      title: '应县木塔',
+      eraTag: '辽 · 清宁二年（1056）',
+      body: '<p>应县木塔，本名佛宫寺释迦塔，通高67.31米，为世界最高最古老的纯木结构楼阁式建筑。外观五层六檐，实为明五暗四九层。</p><p>全塔用红松木料2600余吨，10万余块构件，62种榫卯形式，59种斗拱。纯木榫卯无钉，历经900余年、40余次地震、200余次枪击炮轰，岿然屹立不倒。</p><p>1933年9月，梁思成寄信应县照相馆，附一元邮费请其代拍木塔照片。收到照片后亲赴应县，在塔中测量七日，绘出全套断面图与斗拱详图。</p>',
+      stats: [
+        { v: '67.31m', l: '通高' }, { v: '59种', l: '斗拱' }, { v: '62种', l: '榫卯' }, { v: '10万+', l: '构件' },
+      ],
+      quote: { text: '绝对的overwhelming（压倒性的），好到令人叫绝，喘不出一口气来半天！', source: '梁思成致林徽因信，1933年9月' },
+      building: { id: 'yingxian-pagoda', name: '进入应县木塔3D模型 →' },
+      pageNum: '7',
+    },
+  },
+  // Page 5: Song (left) + Jin (right)
+  {
+    left: {
+      chapter: 'CHAPTER IV · 960-1279',
+      title: '第四章 宋代建筑',
+      eraTag: '宋 · 精致柔美',
+      body: '<p>宋代建筑风格由雄浑走向精致。斗拱尺寸缩小至柱高的2/7，出檐缩短，屋顶坡度增高，装饰趋于华丽。</p><p>北宋崇宁二年（1103）颁布《营造法式》，为李诫奉敕编修，是中国古代最完备的建筑技术专书。它建立了「材分制」（模数制），规定以「材」为基本度量单位，是中国建筑走向规范化的里程碑。</p><p>山西晋祠圣母殿（1023-1032），重檐歇山顶，副阶周匝，为中国此形制最早实例。殿前鱼沼飞梁，为中国现存唯一十字形桥梁。</p>',
+      annotation: { label: '《营造法式》', text: '梁思成从父亲梁启超处获赠此书，被史家称为「天书」——既指其难懂，也喻指读懂了可造出天堂。梁思成毕生致力于《营造法式》注释，将其翻译为现代语言和图解。' },
+      stats: [
+        { v: '1023年', l: '圣母殿' }, { v: '八根', l: '盘龙柱' }, { v: '43尊', l: '宋塑' },
+      ],
+      building: { id: 'jinci', name: '进入晋祠3D模型 →' },
+      pageNum: '8',
+    },
+    right: {
+      chapter: 'CHAPTER V · 1115-1234',
+      title: '第五章 金代建筑',
+      eraTag: '金 · 承辽宋之风',
+      body: '<p>金代建筑承辽宋之风，既有辽之雄浑，又有宋之精致。最大创新为「减柱造」——大胆减少殿内立柱，创造开阔的内部空间。</p><p>崇福寺弥陀殿（1143），面阔七间约40米，为金代建筑标杆。鸱吻高达3米，绿色琉璃剪边。减柱造使殿内空间开阔，金代彩塑、壁画、小木作三绝并存。</p>',
+      annotation: { label: '减柱造', text: '金代建筑的重要创新。通过减少内柱，使用大跨度梁架，创造开阔空间。崇福寺弥陀殿殿内立柱比常规减少数根，形成了较大的礼佛空间。此手法元代进一步发展，成为金元建筑的标志特征。' },
+      stats: [
+        { v: '1143年', l: '始建' }, { v: '七间约40m', l: '面阔' }, { v: '减柱造', l: '结构' }, { v: '高3m', l: '鸱吻' },
+      ],
+      building: { id: 'chongfusi', name: '进入崇福寺3D模型 →' },
+      pageNum: '9',
+    },
+  },
+  // Page 6: Ming intro + architecture (left) + Feiyunlou (right)
+  {
+    left: {
+      chapter: 'CHAPTER VI · 1368-1644',
+      title: '第六章 明代建筑',
+      eraTag: '明 · 工艺精湛',
+      body: '<p>明代是中国建筑复兴的高峰。砖瓦建筑逐渐增多，琉璃技术达鼎盛。木构建筑趋于规范化，斗拱进一步缩小，装饰功能超过结构功能。</p><p>明代两大成就：一是纯木结构楼阁建筑的巅峰——万荣飞云楼；二是多彩琉璃塔的极致——广胜寺飞虹塔。</p><p>飞云楼与应县木塔并称「南楼北塔」，345组斗拱如云朵簇聚。飞虹塔为世界最高多彩琉璃塔，八角十三级，高47.31米。</p>',
+      annotation: { label: '斗拱演变', text: '斗拱从唐到明逐渐缩小：唐代约柱高的1/2，宋代2/7，明代更小。唐代斗拱为结构关键，明代斗拱装饰性增强。梁思成言：「斗拱之组织与比例大小，历代不同，每可借其结构演变之序，以鉴定建筑物之年代。」' },
+      pageNum: '10',
+    },
+    right: {
+      chapter: 'CHAPTER VI · 明代实例',
+      title: '万荣飞云楼',
+      eraTag: '明 · 正德年间重建',
+      body: '<p>飞云楼，中华第一木楼，与应县木塔并称「南楼北塔」。纯木榫卯无钉，三层四檐十字歇山顶。通高约23.19米。</p><p>全楼345组斗拱，形制各异，如云朵簇聚，故名「飞云」。下层斗拱五踩，中层七踩，上层九踩，逐层递增，愈上愈繁。</p><p>飞云楼体现了明代木构技术的巅峰：纯木结构，无一根铁钉，依靠精密的榫卯咬合，历经数百年风雨。</p>',
+      stats: [
+        { v: '23.19m', l: '通高' }, { v: '345组', l: '斗拱' }, { v: '十字歇山', l: '屋顶' }, { v: '纯木无钉', l: '结构' },
+      ],
+      building: { id: 'feiyunlou', name: '进入飞云楼3D模型 →' },
+      pageNum: '11',
+    },
+  },
+  // Page 7: Feihongta (left) + Shuanglinsi (right)
+  {
+    left: {
+      chapter: 'CHAPTER VI · 明代实例',
+      title: '广胜寺飞虹塔',
+      eraTag: '明 · 嘉靖六年（1527）',
+      body: '<p>飞虹塔，世界最高的多彩琉璃塔。八角十三级楼阁式砖塔，通高47.31米。外壁全部用彩色琉璃装饰，为黄、绿、蓝、白、褐五色。</p><p>一至三层最为精致：佛像、菩萨、天王、金刚、盘龙、花卉、鸟兽，琉璃构件数以万计。塔刹由须弥座、莲花座、宝瓶、五重相轮、宝珠组成。</p><p>广胜寺曾藏《赵城金藏》——金代大藏经，中国国家图书馆四大镇馆之宝之一。</p>',
+      stats: [
+        { v: '47.31m', l: '通高' }, { v: '十三级', l: '层数' }, { v: '多彩琉璃', l: '装饰' },
+      ],
+      annotation: { label: '琉璃塔', text: '飞虹塔是中国现存最大、最高、最完整的琉璃塔。琉璃技术至明代达到鼎盛，飞虹塔集琉璃工艺之大成。塔身色彩历经近五百年风雨，至今鲜艳夺目。' },
+      building: { id: 'feihongta', name: '进入飞虹塔3D模型 →' },
+      pageNum: '12',
+    },
+    right: {
+      chapter: 'CHAPTER VI · 明代实例',
+      title: '双林寺彩塑',
+      eraTag: '明清 · 东方彩塑宝库',
+      body: '<p>双林寺，东方彩塑艺术宝库。现存彩塑2056尊，涵盖宋元明清各代，以明代为最。韦驮像为中国彩塑经典中的经典，刚中有柔，动静相宜。</p><p>双林寺彩塑融合了圆塑、壁塑、悬塑、影塑等多种技法。五百菩萨壁画，千手观音、渡海观音等均为绝品。</p>',
+      stats: [
+        { v: '2056尊', l: '彩塑' }, { v: '约15000㎡', l: '面积' }, { v: '韦驮像', l: '彩塑巅峰' },
+      ],
+      quote: { text: '双林寺彩塑，集中国历代彩塑艺术之大成。', source: '艺术评论' },
+      building: { id: 'shuanglinsi', name: '进入双林寺3D模型 →' },
+      pageNum: '13',
+    },
+  },
+  // Page 8: Epilogue (left) + back cover (right)
+  {
+    left: {
+      chapter: 'EPILOGUE',
+      title: '结语',
+      body: '<p>1932年至1937年，梁思成及营造学社同仁调查了137个县市的古建筑1823座，详细测绘206组，完成测绘图稿1898张。</p><p>即使在「七七事变」后艰难困苦的流徙岁月，他也从未放弃。基于调查写成的《中国建筑史》，是首部由中国人自己书写的本民族建筑史。</p><p>山西，这片表里山河之地，保存了从唐到明一千五百年的木构建筑遗存。每一座古建筑，都是一部凝固的史诗，一段无声的岁月，一个民族的记忆。</p>',
+      annotation: { label: '后记', text: '梁思成在《中国建筑史》中写道：「建筑之规模，形体，工程，艺术之均有所演进，乃可称为建筑史。」这十二座古建筑，正是中国建筑演进之路上的十二座里程碑。' },
+      pageNum: '14',
+    },
+    right: {
+      type: 'back-cover',
+      glyph: '終',
+      sub: 'FIN',
+      desc: '梁思成《中国建筑史》<br>1932-1944',
+    },
+  },
+];
+
+let bookCurrentSpread = 0;
+const bookTotalSpreads = BOOK_PAGES.length;
+let bookAnimLock = false;
+
+function renderPageContent(page) {
+  if (!page) return '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-mute);">·</div>';
+  let html = '';
+  if (page.chapter) html += '<div class="page-chapter">' + page.chapter + '</div>';
+  if (page.title) html += '<div class="page-title">' + page.title + '</div>';
+  if (page.eraTag) html += '<div class="page-era-tag" style="background:' + getEraTagColor(page) + '33;color:' + getEraTagColor(page) + 'cc;">' + page.eraTag + '</div>';
+  if (page.body) html += '<div class="page-body">' + page.body + '</div>';
+  if (page.stats) {
+    html += '<div class="page-stats">';
+    page.stats.forEach(function(s) {
+      html += '<div class="page-stat"><strong>' + s.v + '</strong> ' + s.l + '</div>';
+    });
+    html += '</div>';
+  }
+  if (page.quote) {
+    html += '<div class="page-quote"><div class="page-quote-text">「' + page.quote.text + '」</div><div class="page-quote-source">— ' + page.quote.source + '</div></div>';
+  }
+  if (page.annotation) {
+    html += '<div class="page-annotation"><div class="page-annotation-label">' + page.annotation.label + '</div><div class="page-annotation-text">' + page.annotation.text + '</div></div>';
+  }
+  if (page.building) {
+    html += '<button class="page-building-link" data-building-id="' + page.building.id + '">' + page.building.name + '</button>';
+  }
+  if (page.pageNum) {
+    html += '<div class="page-num">— ' + page.pageNum + ' —</div>';
+  }
+  return html;
+}
+
+function getEraTagColor(page) {
+  var tag = page.eraTag || '';
+  if (tag.indexOf('唐') >= 0) return '#c87a3a';
+  if (tag.indexOf('五代') >= 0) return '#7a6a4a';
+  if (tag.indexOf('辽') >= 0) return '#8a6a3a';
+  if (tag.indexOf('宋') >= 0) return '#5a8a4a';
+  if (tag.indexOf('金') >= 0) return '#6a5a8a';
+  if (tag.indexOf('明') >= 0) return '#b8983a';
+  return '#9a7848';
+}
+
+function renderBook() {
+  const container = document.getElementById('book-pages');
+  // Always re-render to ensure correct state
+  const baseLeft = document.getElementById('book-base-left');
+  const baseRight = document.getElementById('book-base-right');
+  container.innerHTML = '';
+
+  // Create all page elements (stacked, z-index by order)
+  BOOK_PAGES.forEach((spread, i) => {
+    const page = document.createElement('div');
+    page.className = 'book-page';
+    page.dataset.index = i;
+    // Higher pages (later spreads) get lower z-index so earlier pages are on top
+    page.style.zIndex = bookTotalSpreads - i;
+
+    // Inner wrapper for 3D transform
+    const inner = document.createElement('div');
+    inner.className = 'book-page-inner';
+
+    // Front face
+    const front = document.createElement('div');
+    front.className = 'book-page-face book-page-front';
+
+    if (i === 0) {
+      // Cover page
+      const spread0 = BOOK_PAGES[0];
+      front.innerHTML = `<div class="book-cover" style="height:100%;">
+        <div class="book-cover-glyph">${spread0.glyph}</div>
+        <div class="book-cover-title">${spread0.title}</div>
+        <div class="book-cover-sub">${spread0.sub}</div>
+        <div class="book-cover-desc">${spread0.desc}</div>
+        <div class="book-cover-seal">山西<br>古建</div>
+      </div>`;
+    } else {
+      // Page i front = spread[i].right
+      const thisSpread = BOOK_PAGES[i];
+      if (thisSpread && thisSpread.right) {
+        if (thisSpread.right.type === 'back-cover') {
+          front.innerHTML = `<div class="book-cover" style="height:100%;">
+            <div class="book-cover-glyph" style="font-size:3rem;">${thisSpread.right.glyph}</div>
+            <div class="book-cover-sub">${thisSpread.right.sub}</div>
+            <div class="book-cover-desc" style="margin-top:1rem;">${thisSpread.right.desc}</div>
+          </div>`;
+        } else {
+          front.innerHTML = renderPageContent(thisSpread.right);
+        }
+      } else {
+        front.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-mute);font-family:Cormorant Garamond;font-size:0.8rem;">·</div>';
+      }
+    }
+
+    // Back face: shows left content of the NEXT spread
+    const back = document.createElement('div');
+    back.className = 'book-page-face book-page-back';
+
+    if (i < bookTotalSpreads - 1) {
+      const nextSpread = BOOK_PAGES[i + 1];
+      if (nextSpread.left) {
+        back.innerHTML = renderPageContent(nextSpread.left);
+      } else if (nextSpread.type === 'cover') {
+        back.innerHTML = `<div class="book-cover" style="height:100%;">
+          <div class="book-cover-glyph">${nextSpread.glyph}</div>
+          <div class="book-cover-title">${nextSpread.title}</div>
+          <div class="book-cover-sub">${nextSpread.sub}</div>
+          <div class="book-cover-desc">${nextSpread.desc}</div>
+          <div class="book-cover-seal">山西<br>古建</div>
+        </div>`;
+      } else {
+        back.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-mute);font-family:Cormorant Garamond;font-size:0.8rem;">·</div>';
+      }
+    } else {
+      // Last page back = back cover
+      back.innerHTML = `<div class="book-cover" style="height:100%;">
+        <div class="book-cover-glyph" style="font-size:3rem;">終</div>
+        <div class="book-cover-sub">FIN</div>
+        <div class="book-cover-desc" style="margin-top:1rem;">梁思成《中国建筑史》<br>1932-1944</div>
+      </div>`;
+    }
+
+    page.appendChild(inner);
+    inner.appendChild(front);
+    inner.appendChild(back);
+
+    // Bind building links
+    page.querySelectorAll('.page-building-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const buildingId = link.dataset.buildingId;
+        const building = BUILDINGS.find(b => b.id === buildingId);
+        if (building) window.open(building.url, '_blank');
+      });
+    });
+
+    // Click to flip this page
+    page.addEventListener('click', (e) => {
+      if (e.target.classList.contains('page-building-link') || e.target.closest('.page-building-link')) return;
+      handlePageClick(i);
+    });
+
+    container.appendChild(page);
+  });
+
+  updateBookState();
+}
+
+function handlePageClick(pageIndex) {
+  if (bookAnimLock) return;
+  const page = document.querySelector(`.book-page[data-index="${pageIndex}"]`);
+  if (!page) return;
+
+  // Temporarily raise z-index during animation
+  page.style.zIndex = 999;
+  page.classList.add('flipping');
+  bookAnimLock = true;
+
+  if (!page.classList.contains('flipped')) {
+    // Flip forward
+    page.classList.add('flipped');
+  } else {
+    // Flip backward
+    page.classList.remove('flipped');
+  }
+
+  setTimeout(() => {
+    page.classList.remove('flipping');
+    bookAnimLock = false;
+    updateBookState();
+  }, 900);
+}
+
+function updateBookState() {
+  // Count flipped pages and adjust z-index
+  const allPages = document.querySelectorAll('.book-page');
+  let flippedCount = 0;
+  
+  allPages.forEach((p, idx) => {
+    if (p.classList.contains('flipped')) {
+      flippedCount++;
+      // Flipped pages: most recently flipped on top (higher z-index)
+      // The last flipped page should have the highest z-index among flipped
+      p.style.zIndex = idx + 1;
+    } else {
+      // Unflipped pages: first unflipped on top (lower index = higher z-index)
+      p.style.zIndex = (bookTotalSpreads - idx) + 100;
+    }
+  });
+
+  const currentSpreadIndex = flippedCount;
+
+  // Update info
+  const infoEl = document.getElementById('book-info');
+  infoEl.textContent = `${Math.min(currentSpreadIndex + 1, bookTotalSpreads)} / ${bookTotalSpreads}`;
+
+  // Update buttons
+  document.getElementById('book-prev').disabled = currentSpreadIndex === 0;
+  document.getElementById('book-next').disabled = currentSpreadIndex >= bookTotalSpreads - 1;
+}
+
+document.getElementById('book-prev').addEventListener('click', () => {
+  if (bookAnimLock) return;
+  // Find the last flipped page and unflip it
+  const allPages = Array.from(document.querySelectorAll('.book-page'));
+  for (let i = allPages.length - 1; i >= 0; i--) {
+    if (allPages[i].classList.contains('flipped')) {
+      handlePageClick(parseInt(allPages[i].dataset.index));
+      return;
+    }
+  }
+});
+
+document.getElementById('book-next').addEventListener('click', () => {
+  if (bookAnimLock) return;
+  // Find the first unflipped page and flip it
+  const allPages = Array.from(document.querySelectorAll('.book-page'));
+  for (let i = 0; i < allPages.length; i++) {
+    if (!allPages[i].classList.contains('flipped')) {
+      handlePageClick(parseInt(allPages[i].dataset.index));
+      return;
+    }
+  }
+});
+
+// ===== Initial render =====
+renderMapCities();
+</script>
+<script src="theme.js"></script>
+
+<!-- 佛小伴返回首页浮动按钮（主站注入） -->
+<style>
+  .buddha-home-btn {
+    position: fixed; left: 22px; bottom: 22px; z-index: 99999;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: linear-gradient(165deg, rgba(253, 248, 234, .97), rgba(243, 234, 214, .95));
+    border: 2px solid rgba(201, 162, 39, .85);
+    border-radius: 16px;
+    padding: 9px 12px 6px;
+    cursor: pointer;
+    font-family: "Noto Serif SC", "STKaiti", serif;
+    box-shadow: 0 8px 22px rgba(20, 12, 4, .38), 0 0 0 4px rgba(240, 201, 79, .18);
+    transition: transform .2s ease, box-shadow .2s ease;
+    animation: buddhaBob 2.6s ease-in-out infinite;
+  }
+  .buddha-home-btn:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 14px 30px rgba(20, 12, 4, .45), 0 0 18px rgba(240, 201, 79, .5);
+    animation-play-state: paused;
+  }
+  @keyframes buddhaBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .buddha-home-btn .bh-label {
+    font-size: 11.5px; letter-spacing: 2px; color: #6f4a28; font-weight: 600; white-space: nowrap;
+  }
+</style>
+<button class="buddha-home-btn" id="buddhaHomeBtn" title="回到大同古建漫游首页">
+  <svg viewBox="0 0 64 64" width="46" height="46" aria-hidden="true">
+    <!-- 耳朵（后层） -->
+    <ellipse cx="13.5" cy="29" rx="5.6" ry="8.2" fill="#fdfaf4" stroke="#c9a887" stroke-width="1.1" transform="rotate(-9 13.5 29)"/>
+    <ellipse cx="13.9" cy="29.5" rx="3.1" ry="5.2" fill="#f0d9b8" transform="rotate(-9 13.9 29.5)"/>
+    <ellipse cx="50.5" cy="29" rx="5.6" ry="8.2" fill="#fdfaf4" stroke="#c9a887" stroke-width="1.1" transform="rotate(9 50.5 29)"/>
+    <ellipse cx="50.1" cy="29.5" rx="3.1" ry="5.2" fill="#f0d9b8" transform="rotate(9 50.1 29.5)"/>
+    <!-- 脸 -->
+    <circle cx="32" cy="28" r="15.5" fill="#fdfaf4" stroke="#d9c3a6" stroke-width="1"/>
+    <!-- 盘发 -->
+    <path d="M16.6,25.5 Q15.5,11.5 32,10.8 Q48.5,11.5 47.4,25.5 Q42,19.6 32,19.6 Q22,19.6 16.6,25.5 Z"
+          fill="#6b4a35" stroke="#553a28" stroke-width="1"/>
+    <path d="M20,17.5 Q24,12.6 30,12.1" fill="none" stroke="#8a6446" stroke-width="1" stroke-linecap="round" opacity=".6"/>
+    <!-- 小髻 -->
+    <circle cx="32" cy="8.6" r="4.1" fill="#6b4a35" stroke="#553a28" stroke-width="1"/>
+    <path d="M30.4,6.4 q1.6,-1 3.2,0" fill="none" stroke="#8a6446" stroke-width="1" stroke-linecap="round"/>
+    <!-- 五官 -->
+    <path d="M24.2,27.6 q2.6,2.5 5.2,0" fill="none" stroke="#5a4030" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M34.6,27.6 q2.6,2.5 5.2,0" fill="none" stroke="#5a4030" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="32" cy="31.3" r="0.9" fill="#8a6446"/>
+    <path d="M29.6,33.8 q2.4,2 4.8,0" fill="none" stroke="#5a4030" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- 腮红 -->
+    <ellipse cx="21.6" cy="32.4" rx="3.3" ry="2.2" fill="#f2a0a0" opacity=".8"/>
+    <ellipse cx="42.4" cy="32.4" rx="3.3" ry="2.2" fill="#f2a0a0" opacity=".8"/>
+    <!-- 身体（薄荷绿衣） -->
+    <path d="M22.5,42.5 Q32,39 41.5,42.5 L43.2,53.5 Q32,58 20.8,53.5 Z"
+          fill="#7fd0c0" stroke="#5cb8a8" stroke-width="1.1"/>
+    <path d="M22.9,44.5 q9.1,-3.2 18.2,0" fill="none" stroke="#5cb8a8" stroke-width="1"/>
+    <!-- 合十的双手 -->
+    <ellipse cx="30.4" cy="45.8" rx="2.7" ry="4.6" fill="#fdfaf4" stroke="#c9a887" stroke-width="1" transform="rotate(-16 30.4 45.8)"/>
+    <ellipse cx="33.6" cy="45.8" rx="2.7" ry="4.6" fill="#fdfaf4" stroke="#c9a887" stroke-width="1" transform="rotate(16 33.6 45.8)"/>
+    <!-- 粉色莲花座 -->
+    <ellipse cx="22.6" cy="55.6" rx="4.6" ry="3" fill="#ee9cb0" transform="rotate(-18 22.6 55.6)"/>
+    <ellipse cx="41.4" cy="55.6" rx="4.6" ry="3" fill="#ee9cb0" transform="rotate(18 41.4 55.6)"/>
+    <ellipse cx="32" cy="57.2" rx="7.6" ry="3.6" fill="#f2a2b0" stroke="#e88aa0" stroke-width="1"/>
+  </svg>
+  <span class="bh-label">回首页</span>
+</button>
+<script>
+  document.getElementById('buddhaHomeBtn').addEventListener('click', function () {
+    location.href = '../map.html';   // 回到古建漫游地图（六景点路线页）
+  });
+</script>
+</body>
+</html>

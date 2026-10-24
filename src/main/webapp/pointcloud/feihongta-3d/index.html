@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>飞虹塔 · 广胜寺琉璃塔三维交互模型</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231a1410'/%3E<path d='M32 10 L50 22 L50 40 L32 54 L14 40 L14 22 Z' fill='%23c9a84c'/%3E<path d='M22 24 L42 24 M22 30 L42 30 M22 36 L42 36' stroke='%231a1410' stroke-width='2.5'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg-deep: #1a0f08;
+    --bg-mid: #2a1810;
+    --bg-warm: #3d2818;
+    --gold: #d4a544;
+    --gold-bright: #f0c060;
+    --gold-dim: #8a6a28;
+    --liuli-yellow: #e8b820;
+    --liuli-green: #3a8a5a;
+    --liuli-blue: #2a6a8a;
+    --liuli-white: #e8e0d0;
+    --liuli-brown: #8a4a28;
+    --liuli-amber: #c87a20;
+    --text-primary: #f0e8d8;
+    --text-secondary: #c0a878;
+    --text-dim: #8a7860;
+    --panel-bg: rgba(26, 15, 8, 0.92);
+    --panel-border: rgba(212, 165, 68, 0.35);
+    --panel-glow: rgba(212, 165, 68, 0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* Loading Screen */
+  #loading-screen {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, var(--bg-warm) 0%, var(--bg-deep) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    transition: opacity 1.2s ease;
+  }
+  #loading-screen.hidden { opacity: 0; pointer-events: none; }
+
+  .loading-tower {
+    width: 80px;
+    height: 120px;
+    position: relative;
+    margin-bottom: 30px;
+  }
+  .loading-tower svg {
+    width: 100%;
+    height: 100%;
+    animation: glow-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes glow-pulse {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(212, 165, 68, 0.4)); opacity: 0.6; }
+    50% { filter: drop-shadow(0 0 20px rgba(212, 165, 68, 0.8)); opacity: 1; }
+  }
+
+  .loading-title {
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 28px;
+    color: var(--gold-bright);
+    letter-spacing: 8px;
+    margin-bottom: 12px;
+    text-shadow: 0 0 20px rgba(212, 165, 68, 0.3);
+  }
+  .loading-subtitle {
+    font-size: 14px;
+    color: var(--text-dim);
+    letter-spacing: 4px;
+  }
+  .loading-bar {
+    width: 240px;
+    height: 2px;
+    background: var(--bg-warm);
+    margin-top: 30px;
+    overflow: hidden;
+    position: relative;
+  }
+  .loading-bar::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -40%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
+    animation: loading-slide 1.2s ease-in-out infinite;
+  }
+  @keyframes loading-slide {
+    0% { left: -40%; }
+    100% { left: 100%; }
+  }
+
+  /* Canvas Container */
+  #canvas-container {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 60%, #3a2010 0%, #1a0f08 50%, #0a0604 100%);
+  }
+  #canvas-container canvas { display: block; }
+
+  /* Atmospheric overlay */
+  #atmosphere {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 20% 80%, rgba(212, 165, 68, 0.06) 0%, transparent 40%),
+      radial-gradient(circle at 80% 20%, rgba(200, 122, 32, 0.04) 0%, transparent 50%);
+    z-index: 1;
+  }
+
+  /* Top Bar */
+  #top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+    background: linear-gradient(180deg, rgba(10, 6, 4, 0.7) 0%, transparent 100%);
+    pointer-events: none;
+  }
+  .top-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .top-logo {
+    width: 36px;
+    height: 36px;
+    border: 1.5px solid var(--gold-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 20px;
+    color: var(--gold-bright);
+    background: rgba(26, 15, 8, 0.6);
+    backdrop-filter: blur(8px);
+  }
+  .top-title {
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 22px;
+    color: var(--text-primary);
+    letter-spacing: 4px;
+  }
+  .top-subtitle {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    margin-top: 2px;
+  }
+  .top-right {
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 8px 16px;
+    background: rgba(26, 15, 8, 0.7);
+    border: 1px solid var(--gold-dim);
+    color: var(--text-secondary);
+    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 1px;
+    user-select: none;
+  }
+  .btn:hover {
+    background: rgba(60, 40, 24, 0.8);
+    border-color: var(--gold-bright);
+    color: var(--gold-bright);
+    box-shadow: 0 0 16px rgba(212, 165, 68, 0.15);
+  }
+  .btn.active {
+    background: rgba(212, 165, 68, 0.15);
+    border-color: var(--gold-bright);
+    color: var(--gold-bright);
+  }
+  .btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Info Panel */
+  #info-panel {
+    position: fixed;
+    right: 0; top: 0; bottom: 0;
+    width: 420px;
+    background: var(--panel-bg);
+    border-left: 1px solid var(--panel-border);
+    backdrop-filter: blur(16px);
+    transform: translateX(100%);
+    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 200;
+    overflow-y: auto;
+    padding: 80px 36px 40px;
+    box-shadow: -20px 0 60px rgba(0,0,0,0.5);
+  }
+  #info-panel.open { transform: translateX(0); }
+
+  .panel-close {
+    position: absolute;
+    top: 20px; right: 20px;
+    width: 32px; height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 22px;
+    cursor: pointer;
+    transition: color 0.3s;
+  }
+  .panel-close:hover { color: var(--gold-bright); }
+
+  .panel-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(212, 165, 68, 0.1);
+    border: 1px solid var(--gold-dim);
+    font-size: 11px;
+    color: var(--gold-bright);
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+  }
+  .panel-title {
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 32px;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+  .panel-subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(212, 165, 68, 0.12);
+  }
+  .panel-section {
+    margin-bottom: 24px;
+  }
+  .panel-section-title {
+    font-size: 12px;
+    color: var(--gold);
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .panel-section-content {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+  .panel-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-item {
+    padding: 12px 16px;
+    background: rgba(60, 40, 24, 0.3);
+    border: 1px solid rgba(212, 165, 68, 0.1);
+  }
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 20px;
+    color: var(--gold-bright);
+  }
+
+  /* Bottom Layer Selector */
+  #layer-selector {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    background: rgba(26, 15, 8, 0.8);
+    border: 1px solid var(--gold-dim);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+    border-radius: 2px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .layer-btn {
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    position: relative;
+  }
+  .layer-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 1px;
+    background: var(--gold-bright);
+    transition: all 0.3s;
+    transform: translateX(-50%);
+  }
+  .layer-btn:hover { color: var(--text-secondary); }
+  .layer-btn:hover::after { width: 60%; }
+  .layer-btn.active {
+    color: var(--gold-bright);
+    background: rgba(212, 165, 68, 0.1);
+  }
+  .layer-btn.active::after { width: 80%; }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    padding: 8px 14px;
+    background: rgba(26, 15, 8, 0.92);
+    border: 1px solid var(--gold-dim);
+    color: var(--gold-bright);
+    font-size: 12px;
+    letter-spacing: 2px;
+    pointer-events: none;
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.2s;
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+  }
+  #tooltip.visible { opacity: 1; }
+
+  /* Left side info */
+  #side-info {
+    position: fixed;
+    left: 24px;
+    bottom: 90px;
+    z-index: 50;
+    max-width: 240px;
+  }
+  .side-card {
+    background: rgba(26, 15, 8, 0.7);
+    border: 1px solid rgba(212, 165, 68, 0.15);
+    backdrop-filter: blur(8px);
+    padding: 14px 18px;
+    margin-bottom: 8px;
+  }
+  .side-card-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .side-card-value {
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 16px;
+    color: var(--text-primary);
+  }
+
+  /* Decorative corner */
+  .corner-deco {
+    position: fixed;
+    width: 100px;
+    height: 100px;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0.3;
+  }
+  .corner-deco svg { width: 100%; height: 100%; }
+  .corner-tl { top: 0; left: 0; }
+  .corner-tr { top: 0; right: 0; transform: scaleX(-1); }
+  .corner-bl { bottom: 0; left: 0; transform: scaleY(-1); }
+  .corner-br { bottom: 0; right: 0; transform: scale(-1, -1); }
+
+  /* Scrollbar */
+  #info-panel::-webkit-scrollbar { width: 4px; }
+  #info-panel::-webkit-scrollbar-track { background: transparent; }
+  #info-panel::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 2px; }
+
+  /* Compass */
+  #compass {
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    width: 60px;
+    height: 60px;
+    z-index: 50;
+    pointer-events: none;
+  }
+  #compass svg { width: 100%; height: 100%; }
+
+  @media (max-width: 768px) {
+    #info-panel { width: 100%; padding: 70px 20px 40px; }
+    .top-title { font-size: 16px; }
+    .top-subtitle { display: none; }
+    #layer-selector { flex-wrap: wrap; max-width: 90vw; justify-content: center; }
+    .layer-btn { font-size: 11px; padding: 6px 10px; }
+    #side-info { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div id="loading-screen">
+  <div class="loading-tower">
+    <svg viewBox="0 0 80 120">
+      <polygon points="40,5 55,15 55,20 25,20 25,15" fill="#d4a544" opacity="0.8"/>
+      <polygon points="40,20 58,30 58,35 22,35 22,30" fill="#c87a20" opacity="0.85"/>
+      <polygon points="40,35 62,48 62,53 18,53 18,48" fill="#3a8a5a" opacity="0.7"/>
+      <polygon points="40,53 65,66 65,71 15,71 15,66" fill="#e8b820" opacity="0.8"/>
+      <polygon points="40,71 67,84 67,89 13,89 13,84" fill="#2a6a8a" opacity="0.7"/>
+      <polygon points="40,89 69,100 69,105 11,105 11,100" fill="#c87a20" opacity="0.85"/>
+      <polygon points="40,105 71,115 71,118 9,118 9,115" fill="#8a4a28" opacity="0.8"/>
+    </svg>
+  </div>
+  <div class="loading-title">飞 虹 塔</div>
+  <div class="loading-subtitle">广胜寺琉璃塔 · 三维交互模型</div>
+  <div class="loading-bar"></div>
+</div>
+
+<!-- Corner Decorations -->
+<div class="corner-deco corner-tl">
+  <svg viewBox="0 0 100 100"><path d="M0,0 L40,0 M0,0 L0,40 M5,5 L25,5 M5,5 L5,25" stroke="#d4a544" stroke-width="1" fill="none"/><circle cx="8" cy="8" r="3" fill="none" stroke="#d4a544" stroke-width="0.5"/></svg>
+</div>
+<div class="corner-deco corner-tr">
+  <svg viewBox="0 0 100 100"><path d="M0,0 L40,0 M0,0 L0,40 M5,5 L25,5 M5,5 L5,25" stroke="#d4a544" stroke-width="1" fill="none"/><circle cx="8" cy="8" r="3" fill="none" stroke="#d4a544" stroke-width="0.5"/></svg>
+</div>
+<div class="corner-deco corner-bl">
+  <svg viewBox="0 0 100 100"><path d="M0,0 L40,0 M0,0 L0,40 M5,5 L25,5 M5,5 L5,25" stroke="#d4a544" stroke-width="1" fill="none"/><circle cx="8" cy="8" r="3" fill="none" stroke="#d4a544" stroke-width="0.5"/></svg>
+</div>
+<div class="corner-deco corner-br">
+  <svg viewBox="0 0 100 100"><path d="M0,0 L40,0 M0,0 L0,40 M5,5 L25,5 M5,5 L5,25" stroke="#d4a544" stroke-width="1" fill="none"/><circle cx="8" cy="8" r="3" fill="none" stroke="#d4a544" stroke-width="0.5"/></svg>
+</div>
+
+<!-- Atmosphere -->
+<div id="atmosphere"></div>
+
+<!-- 3D Canvas -->
+<div id="canvas-container"></div>
+
+<!-- Top Bar -->
+<div id="top-bar">
+  <div class="top-left">
+    <div class="top-logo">塔</div>
+    <div>
+      <div class="top-title">飞虹塔</div>
+      <div class="top-subtitle">SHANXI · HONGDONG · GUANGSHENG TEMPLE</div>
+    </div>
+  </div>
+  <div class="top-right">
+    <button class="btn" id="btn-rotate" title="自动旋转">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      自动旋转
+    </button>
+    <button class="btn" id="btn-explode" title="拆解视图">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v8M12 14v8M2 12h8M14 12h8M5 5l4 4M15 15l4 4M19 5l-4 4M9 15l-4 4"/></svg>
+      拆解视图
+    </button>
+    <button class="btn" id="btn-reset" title="重置视角">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 6.7 3L21 3M21 3v6h-6"/><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-6.7-3L3 21M3 21v-6h6"/></svg>
+      重置视角
+    </button>
+  </div>
+</div>
+
+<!-- Compass -->
+<div id="compass">
+  <svg viewBox="0 0 60 60">
+    <circle cx="30" cy="30" r="26" fill="none" stroke="#d4a544" stroke-width="0.5" opacity="0.4"/>
+    <circle cx="30" cy="30" r="20" fill="none" stroke="#d4a544" stroke-width="0.3" opacity="0.3"/>
+    <polygon points="30,8 33,30 30,28 27,30" fill="#c87a20"/>
+    <polygon points="30,52 33,30 30,32 27,30" fill="#8a6a28"/>
+    <text x="30" y="6" text-anchor="middle" fill="#d4a544" font-size="8" font-family="serif">北</text>
+    <text x="30" y="58" text-anchor="middle" fill="#8a6a28" font-size="6" font-family="serif">南</text>
+  </svg>
+</div>
+
+<!-- Side Info -->
+<div id="side-info">
+  <div class="side-card">
+    <div class="side-card-label">通高</div>
+    <div class="side-card-value">47.31 米</div>
+  </div>
+  <div class="side-card">
+    <div class="side-card-label">层级</div>
+    <div class="side-card-value">十三级八角</div>
+  </div>
+  <div class="side-card">
+    <div class="side-card-label">建造年代</div>
+    <div class="side-card-value">明嘉靖六年 · 1527</div>
+  </div>
+</div>
+
+<!-- Info Panel -->
+<div id="info-panel">
+  <button class="panel-close" id="panel-close">✕</button>
+  <div id="panel-content"></div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<!-- Bottom Layer Selector -->
+<div id="layer-selector">
+  <button class="layer-btn active" data-layer="all">整体全景</button>
+  <button class="layer-btn" data-layer="base">塔基台座</button>
+  <button class="layer-btn" data-layer="lower">一至三层</button>
+  <button class="layer-btn" data-layer="middle">中段塔身</button>
+  <button class="layer-btn" data-layer="upper">上部塔层</button>
+  <button class="layer-btn" data-layer="finial">塔刹</button>
+  <button class="layer-btn" data-layer="interior">内部结构</button>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../three-lib/three/three.module.js",
+    "three/addons/": "../three-lib/three/addons/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ==================== Scene Setup ====================
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x1a0f08, 0.012);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(55, 40, 55);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 20;
+controls.maxDistance = 150;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.target.set(0, 20, 0);
+controls.autoRotateSpeed = 0.6;
+
+// ==================== Lighting ====================
+const ambientLight = new THREE.AmbientLight(0x4a3a2a, 0.5);
+scene.add(ambientLight);
+
+const hemiLight = new THREE.HemisphereLight(0xd4a544, 0x2a1810, 0.4);
+scene.add(hemiLight);
+
+const sunLight = new THREE.DirectionalLight(0xf0d090, 1.2);
+sunLight.position.set(40, 60, 30);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.camera.left = -60;
+sunLight.shadow.camera.right = 60;
+sunLight.shadow.camera.top = 80;
+sunLight.shadow.camera.bottom = -10;
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 200;
+sunLight.shadow.bias = -0.0003;
+scene.add(sunLight);
+
+const rimLight = new THREE.DirectionalLight(0xc87a20, 0.3);
+rimLight.position.set(-30, 20, -40);
+scene.add(rimLight);
+
+const fillLight = new THREE.PointLight(0xe8b820, 0.4, 80);
+fillLight.position.set(0, 10, 0);
+scene.add(fillLight);
+
+// ==================== Ground ====================
+const groundGeo = new THREE.CircleGeometry(80, 64);
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x3d2818,
+  roughness: 0.9,
+  metalness: 0.1
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.1;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Ground pattern rings
+for (let i = 1; i <= 4; i++) {
+  const ringGeo = new THREE.RingGeometry(i * 12, i * 12 + 0.15, 64);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x8a6a28, transparent: true, opacity: 0.2 - i * 0.03 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.01;
+  scene.add(ring);
+}
+
+// ==================== Tower Builder ====================
+const towerGroup = new THREE.Group();
+scene.add(towerGroup);
+
+const clickableParts = [];
+const layerGroups = { base: [], lower: [], middle: [], upper: [], finial: [], interior: [] };
+
+// Materials - Liuli (glazed tile) colors
+const matLiuliYellow = new THREE.MeshStandardMaterial({ color: 0xe8b820, roughness: 0.35, metalness: 0.3, emissive: 0x4a3a00, emissiveIntensity: 0.08 });
+const matLiuliGreen = new THREE.MeshStandardMaterial({ color: 0x3a8a5a, roughness: 0.35, metalness: 0.3, emissive: 0x0a2a1a, emissiveIntensity: 0.08 });
+const matLiuliBlue = new THREE.MeshStandardMaterial({ color: 0x2a6a8a, roughness: 0.4, metalness: 0.25, emissive: 0x0a1a2a, emissiveIntensity: 0.08 });
+const matLiuliWhite = new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.3, metalness: 0.2, emissive: 0x2a2820, emissiveIntensity: 0.05 });
+const matLiuliBrown = new THREE.MeshStandardMaterial({ color: 0x8a4a28, roughness: 0.5, metalness: 0.2, emissive: 0x2a1408, emissiveIntensity: 0.08 });
+const matLiuliAmber = new THREE.MeshStandardMaterial({ color: 0xc87a20, roughness: 0.4, metalness: 0.25, emissive: 0x3a1a08, emissiveIntensity: 0.08 });
+const matStone = new THREE.MeshStandardMaterial({ color: 0x6a5a48, roughness: 0.85, metalness: 0.05 });
+const matBrick = new THREE.MeshStandardMaterial({ color: 0x8a6848, roughness: 0.8, metalness: 0.1 });
+const matGold = new THREE.MeshStandardMaterial({ color: 0xd4a544, roughness: 0.2, metalness: 0.8, emissive: 0x3a2a00, emissiveIntensity: 0.15 });
+const matWood = new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.75, metalness: 0.1 });
+
+const liuliMaterials = [matLiuliYellow, matLiuliGreen, matLiuliBlue, matLiuliWhite, matLiuliBrown, matLiuliAmber];
+
+// Helper: create octagonal geometry
+function createOctagonalShape(radius) {
+  const shape = new THREE.Shape();
+  const sides = 8;
+  for (let i = 0; i <= sides; i++) {
+    const angle = (i / sides) * Math.PI * 2 - Math.PI / 8;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  return shape;
+}
+
+function createOctagonalGeometry(radius, height) {
+  const shape = createOctagonalShape(radius);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: true, bevelThickness: 0.15, bevelSize: 0.1, bevelSegments: 2 });
+  geo.rotateX(-Math.PI / 2);
+  return geo;
+}
+
+// Helper: make a part clickable
+function makeClickable(mesh, partInfo) {
+  mesh.userData.partInfo = partInfo;
+  mesh.userData.originalMaterials = [];
+  mesh.traverse(child => {
+    if (child.isMesh) {
+      child.userData.originalMaterial = child.material;
+      mesh.userData.originalMaterials.push(child);
+    }
+  });
+  clickableParts.push(mesh);
+  return mesh;
+}
+
+// ==================== Build Tower Base ====================
+function buildBase() {
+  const baseGroup = new THREE.Group();
+
+  // Stone platform - lower
+  const platGeo = new THREE.CylinderGeometry(14, 15, 1.5, 8);
+  const platform = new THREE.Mesh(platGeo, matStone);
+  platform.position.y = 0.75;
+  platform.castShadow = true;
+  platform.receiveShadow = true;
+  baseGroup.add(platform);
+
+  // Stone platform - upper
+  const plat2Geo = new THREE.CylinderGeometry(12, 13.5, 1, 8);
+  const platform2 = new THREE.Mesh(plat2Geo, matStone);
+  platform2.position.y = 2;
+  platform2.castShadow = true;
+  platform2.receiveShadow = true;
+  baseGroup.add(platform2);
+
+  // Steps
+  for (let i = 0; i < 3; i++) {
+    const stepGeo = new THREE.BoxGeometry(6 - i * 0.8, 0.4, 1.2 - i * 0.2);
+    const step = new THREE.Mesh(stepGeo, matStone);
+    step.position.set(0, 0.2 + i * 0.4, 13 + i * 0.6);
+    step.castShadow = true;
+    baseGroup.add(step);
+  }
+
+  // Decorative balustrade posts
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const postGeo = new THREE.CylinderGeometry(0.2, 0.25, 1.2, 6);
+    const post = new THREE.Mesh(postGeo, matStone);
+    post.position.set(Math.cos(angle) * 12.5, 2.6, Math.sin(angle) * 12.5);
+    post.castShadow = true;
+    baseGroup.add(post);
+
+    // Post top ornament
+    const ornGeo = new THREE.SphereGeometry(0.25, 8, 6);
+    const orn = new THREE.Mesh(ornGeo, matLiuliYellow);
+    orn.position.set(Math.cos(angle) * 12.5, 3.3, Math.sin(angle) * 12.5);
+    baseGroup.add(orn);
+  }
+
+  // Tower base brick section
+  const baseTowerGeo = createOctagonalGeometry(9, 2.5);
+  const baseTower = new THREE.Mesh(baseTowerGeo, matBrick);
+  baseTower.position.y = 2.5;
+  baseTower.castShadow = true;
+  baseTower.receiveShadow = true;
+  baseGroup.add(baseTower);
+
+  // Base liuli border band
+  const bandGeo = new THREE.CylinderGeometry(9.1, 9.1, 0.6, 8);
+  const bandMat = matLiuliGreen;
+  const band = new THREE.Mesh(bandGeo, bandMat);
+  band.position.y = 3.1;
+  baseGroup.add(band);
+
+  // Stone vajra throne base (须弥座)
+  const xumiGeo = new THREE.CylinderGeometry(9.5, 10, 1, 8);
+  const xumi = new THREE.Mesh(xumiGeo, matStone);
+  xumi.position.y = 1.5;
+  xumi.castShadow = true;
+  baseGroup.add(xumi);
+
+  // Surrounding temple buildings (simplified)
+  buildSurroundingBuildings(baseGroup);
+
+  makeClickable(baseGroup, {
+    name: '塔基与台座',
+    tag: 'STONE FOUNDATION',
+    subtitle: '明代石砌须弥座 · 八角形基台',
+    description: '飞虹塔塔基为石砌八角形须弥座，坚固稳重。基座上承砖砌塔身，下接山岩。台座四周设有石质栏杆与台阶，为信徒登塔礼佛之通道。基座层数设计契合佛教曼陀罗理念，象征从凡入圣的修行次第。',
+    stats: [
+      { label: '基座形状', value: '八角形' },
+      { label: '台座高度', value: '约3.5米' },
+      { label: '材质', value: '青石·砖砌' },
+      { label: '年代', value: '明嘉靖六年' }
+    ],
+    sections: [
+      { title: '须弥座结构', content: '塔基采用传统须弥座形制，上下枭、束腰、上下枋层次分明。束腰部分雕有金刚力士与莲花纹饰，为明代石雕精品。' },
+      { title: '登塔入口', content: '南面设拱券门洞，门洞两侧原有天王石雕守护。塔内设阶梯通道，可盘旋而上至塔顶。' }
+    ]
+  });
+
+  layerGroups.base.push(baseGroup);
+  towerGroup.add(baseGroup);
+  return baseGroup;
+}
+
+function buildSurroundingBuildings(parent) {
+  // Simple surrounding buildings - upper temple cluster
+  const templeGroup = new THREE.Group();
+
+  // Main hall behind tower
+  const hallGeo = new THREE.BoxGeometry(12, 5, 8);
+  const hall = new THREE.Mesh(hallGeo, matBrick);
+  hall.position.set(-22, 2.5, -10);
+  hall.castShadow = true;
+  templeGroup.add(hall);
+
+  // Hall roof
+  const roofGeo = new THREE.ConeGeometry(9, 3, 4);
+  const roof = new THREE.Mesh(roofGeo, matLiuliGreen);
+  roof.position.set(-22, 6.5, -10);
+  roof.rotation.y = Math.PI / 4;
+  roof.castShadow = true;
+  templeGroup.add(roof);
+
+  // Side buildings
+  for (let side of [-1, 1]) {
+    const sideGeo = new THREE.BoxGeometry(6, 3.5, 5);
+    const sideBldg = new THREE.Mesh(sideGeo, matBrick);
+    sideBldg.position.set(side * 18, 1.75, -8);
+    sideBldg.castShadow = true;
+    templeGroup.add(sideBldg);
+
+    const sRoofGeo = new THREE.ConeGeometry(5, 2, 4);
+    const sRoof = new THREE.Mesh(sRoofGeo, matLiuliAmber);
+    sRoof.position.set(side * 18, 4.5, -8);
+    sRoof.rotation.y = Math.PI / 4;
+    templeGroup.add(sRoof);
+  }
+
+  // Front gate
+  const gateGeo = new THREE.BoxGeometry(8, 4, 3);
+  const gate = new THREE.Mesh(gateGeo, matBrick);
+  gate.position.set(0, 2, 18);
+  gate.castShadow = true;
+  templeGroup.add(gate);
+
+  const gateRoofGeo = new THREE.ConeGeometry(6, 2.5, 4);
+  const gateRoof = new THREE.Mesh(gateRoofGeo, matLiuliGreen);
+  gateRoof.position.set(0, 5.25, 18);
+  gateRoof.rotation.y = Math.PI / 4;
+  templeGroup.add(gateRoof);
+
+  // Trees (simple)
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2 + 0.3;
+    const r = 28 + Math.random() * 8;
+    const treeTrunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 3, 6);
+    const treeTrunk = new THREE.Mesh(treeTrunkGeo, matWood);
+    treeTrunk.position.set(Math.cos(angle) * r, 1.5, Math.sin(angle) * r);
+    treeTrunk.castShadow = true;
+    templeGroup.add(treeTrunk);
+
+    const treeCrownGeo = new THREE.ConeGeometry(2, 4, 6);
+    const treeMat = new THREE.MeshStandardMaterial({ color: 0x2a5a3a, roughness: 0.8 });
+    const treeCrown = new THREE.Mesh(treeCrownGeo, treeMat);
+    treeCrown.position.set(Math.cos(angle) * r, 4.5, Math.sin(angle) * r);
+    treeCrown.castShadow = true;
+    templeGroup.add(treeCrown);
+  }
+
+  makeClickable(templeGroup, {
+    name: '广胜寺上寺建筑群',
+    tag: 'UPPER TEMPLE COMPLEX',
+    subtitle: '霍山南麓 · 唐代古刹',
+    description: '广胜寺分上寺与下寺两部分。飞虹塔位于上寺，寺内还有弥勒殿、大雄宝殿、毗卢阁等建筑。上寺坐落于霍山南麓，始建于东汉建和元年（147年），原名阿育王塔院，唐代改称广胜寺。寺院依山而建，殿宇层叠，气势恢宏。',
+    stats: [
+      { label: '寺院始建', value: '东汉建和元年' },
+      { label: '占地面积', value: '约2.3万平方米' },
+      { label: '主要建筑', value: '飞虹塔·弥勒殿·大雄宝殿' },
+      { label: '文物保护', value: '第一批国保' }
+    ],
+    sections: [
+      { title: '上寺布局', content: '上寺坐北朝南，中轴线上依次为山门、飞虹塔、弥勒殿、大雄宝殿、毗卢阁。两侧有钟鼓楼、配殿等。飞虹塔矗立于寺院前部，为上寺标志性建筑。' },
+      { title: '历史沿革', content: '广胜寺始建于东汉，原名俱卢舍寺。唐代高僧无坏禅师曾驻锡于此。元代遭兵燹，明代重建。飞虹塔即明代重建时的杰作，由达连和尚募化修建。' },
+      { title: '《赵城金藏》', content: '广胜寺曾藏有著名的《赵城金藏》——金代刊刻的大藏经，共计6980卷。这部稀世珍宝曾藏于飞虹塔内，后转移至北京图书馆（今国家图书馆）保存，为中国佛教文献之国宝。' }
+    ]
+  });
+
+  layerGroups.base.push(templeGroup);
+  parent.add(templeGroup);
+}
+
+// ==================== Build Tower Body (13 levels) ====================
+function buildTowerBody() {
+  const bodyGroup = new THREE.Group();
+
+  // 13 levels of the pagoda
+  // Lower 3 levels (most elaborate), middle 5 levels, upper 5 levels
+  const numLevels = 13;
+  let currentY = 4.5;
+  let currentRadius = 8.5;
+  const radiusStep = 0.42;
+  const levelHeights = [3.2, 3.0, 2.8, 2.5, 2.3, 2.1, 1.9, 1.7, 1.5, 1.3, 1.1, 0.9, 0.7];
+
+  for (let i = 0; i < numLevels; i++) {
+    const levelGroup = new THREE.Group();
+    const radius = currentRadius - radiusStep * i * 0.6;
+    const height = levelHeights[i];
+    const isLower = i < 3;
+    const isMiddle = i >= 3 && i < 8;
+    const isUpper = i >= 8;
+
+    // Main body - octagonal
+    const bodyGeo = createOctagonalGeometry(radius, height);
+    const bodyMat = isLower ? matLiuliYellow.clone() : (isMiddle ? matLiuliAmber.clone() : matLiuliBrown.clone());
+    bodyMat.emissiveIntensity = isLower ? 0.12 : 0.06;
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = currentY + height / 2;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    levelGroup.add(body);
+
+    // Eaves (dougong + upturned roof eaves)
+    const eaveRadius = radius + 0.8 + (isLower ? 0.4 : 0);
+    const eaveGeo = new THREE.ConeGeometry(eaveRadius, 1.2 + (isLower ? 0.3 : 0), 8);
+    const eaveMat = isLower ? matLiuliGreen.clone() : (i % 2 === 0 ? matLiuliGreen.clone() : matLiuliBlue.clone());
+    const eave = new THREE.Mesh(eaveGeo, eaveMat);
+    eave.position.y = currentY + height + 0.4;
+    eave.castShadow = true;
+    levelGroup.add(eave);
+
+    // Eave rim decoration (glazed tile border)
+    const rimGeo = new THREE.CylinderGeometry(eaveRadius * 0.95, eaveRadius * 0.95, 0.25, 8);
+    const rimMat = liuliMaterials[i % liuliMaterials.length];
+    const rim = new THREE.Mesh(rimGeo, rimMat);
+    rim.position.y = currentY + height + 0.05;
+    levelGroup.add(rim);
+
+    // Decorative elements per level
+    if (isLower) {
+      // Lower levels - most elaborate: Buddha niches, floral patterns
+      for (let face = 0; face < 8; face++) {
+        const angle = (face / 8) * Math.PI * 2 - Math.PI / 8;
+        const fx = Math.cos(angle) * (radius + 0.05);
+        const fz = Math.sin(angle) * (radius + 0.05);
+
+        // Buddha niche
+        const nicheGeo = new THREE.BoxGeometry(1.2, 1.8, 0.3);
+        const nicheMat = matLiuliWhite.clone();
+        const niche = new THREE.Mesh(nicheGeo, nicheMat);
+        niche.position.set(fx, currentY + height * 0.55, fz);
+        niche.lookAt(0, currentY + height * 0.55, 0);
+        niche.rotation.y += Math.PI;
+        levelGroup.add(niche);
+
+        // Buddha figure inside niche (simple representation)
+        const buddhaGeo = new THREE.SphereGeometry(0.35, 12, 8);
+        const buddhaMat = matGold.clone();
+        const buddha = new THREE.Mesh(buddhaGeo, buddhaMat);
+        buddha.position.set(fx * 0.96, currentY + height * 0.55, fz * 0.96);
+        levelGroup.add(buddha);
+
+        // Floral ornaments around niche
+        for (let s = -1; s <= 1; s += 2) {
+          const flowerGeo = new THREE.CircleGeometry(0.25, 8);
+          const flowerMat = liuliMaterials[(face + s + i) % liuliMaterials.length];
+          const flower = new THREE.Mesh(flowerGeo, flowerMat);
+          flower.position.set(
+            Math.cos(angle) * (radius + 0.1) + Math.sin(angle) * s * 0.8,
+            currentY + height * 0.8,
+            Math.sin(angle) * (radius + 0.1) - Math.cos(angle) * s * 0.8
+          );
+          flower.lookAt(0, currentY + height * 0.8, 0);
+          levelGroup.add(flower);
+        }
+      }
+
+      // Pillars at corners
+      for (let face = 0; face < 8; face++) {
+        const angle = (face / 8) * Math.PI * 2 - Math.PI / 8 + Math.PI / 8;
+        const px = Math.cos(angle) * (radius + 0.15);
+        const pz = Math.sin(angle) * (radius + 0.15);
+        const pillarGeo = new THREE.CylinderGeometry(0.18, 0.18, height + 0.5, 8);
+        const pillarMat = new THREE.MeshStandardMaterial({ color: 0x8a2a20, roughness: 0.4, metalness: 0.2, emissive: 0x2a0a08, emissiveIntensity: 0.06 });
+        const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+        pillar.position.set(px, currentY + height / 2 + 0.25, pz);
+        pillar.castShadow = true;
+        levelGroup.add(pillar);
+      }
+
+      // Hanging bells at eave corners
+      for (let face = 0; face < 8; face++) {
+        const angle = (face / 8) * Math.PI * 2 - Math.PI / 8 + Math.PI / 8;
+        const bx = Math.cos(angle) * eaveRadius;
+        const bz = Math.sin(angle) * eaveRadius;
+        const bellGeo = new THREE.ConeGeometry(0.15, 0.4, 6);
+        const bellMat = matGold.clone();
+        const bell = new THREE.Mesh(bellGeo, bellMat);
+        bell.position.set(bx, currentY + height, bz);
+        bell.rotation.x = Math.PI;
+        levelGroup.add(bell);
+      }
+    } else {
+      // Middle and upper levels - simpler decorations
+      for (let face = 0; face < 8; face++) {
+        const angle = (face / 8) * Math.PI * 2 - Math.PI / 8;
+        const fx = Math.cos(angle) * (radius + 0.05);
+        const fz = Math.sin(angle) * (radius + 0.05);
+
+        // Small niche
+        const nicheGeo = new THREE.BoxGeometry(0.7, 1.0, 0.2);
+        const nicheMat = isMiddle ? matLiuliWhite.clone() : matLiuliYellow.clone();
+        const niche = new THREE.Mesh(nicheGeo, nicheMat);
+        niche.position.set(fx, currentY + height * 0.5, fz);
+        niche.lookAt(0, currentY + height * 0.5, 0);
+        niche.rotation.y += Math.PI;
+        levelGroup.add(niche);
+
+        // Small figure
+        const figGeo = new THREE.SphereGeometry(0.2, 8, 6);
+        const figMat = isMiddle ? matGold.clone() : matLiuliWhite.clone();
+        const fig = new THREE.Mesh(figGeo, figMat);
+        fig.position.set(fx * 0.97, currentY + height * 0.5, fz * 0.97);
+        levelGroup.add(fig);
+
+        // Decorative border
+        const borderGeo = new THREE.BoxGeometry(0.9, 0.15, 0.1);
+        const borderMat = liuliMaterials[(face + i) % liuliMaterials.length];
+        const borderTop = new THREE.Mesh(borderGeo, borderMat);
+        borderTop.position.set(fx, currentY + height * 0.75, fz);
+        borderTop.lookAt(0, currentY + height * 0.75, 0);
+        borderTop.rotation.y += Math.PI;
+        levelGroup.add(borderTop);
+
+        const borderBot = borderTop.clone();
+        borderBot.position.y = currentY + height * 0.25;
+        levelGroup.add(borderBot);
+      }
+
+      // Corner pillars (thinner for upper levels)
+      for (let face = 0; face < 8; face++) {
+        const angle = (face / 8) * Math.PI * 2 - Math.PI / 8 + Math.PI / 8;
+        const px = Math.cos(angle) * (radius + 0.1);
+        const pz = Math.sin(angle) * (radius + 0.1);
+        const pillarGeo = new THREE.CylinderGeometry(0.12, 0.12, height + 0.3, 6);
+        const pillarMat = matLiuliBrown.clone();
+        const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+        pillar.position.set(px, currentY + height / 2 + 0.15, pz);
+        levelGroup.add(pillar);
+      }
+    }
+
+    // Colored glaze bands between levels
+    const bandGeo = new THREE.CylinderGeometry(radius + 0.12, radius + 0.12, 0.2, 8);
+    const bandMat = liuliMaterials[i % liuliMaterials.length];
+    const band = new THREE.Mesh(bandGeo, bandMat);
+    band.position.y = currentY + height + 0.85;
+    levelGroup.add(band);
+
+    // Determine layer
+    const layerKey = isLower ? 'lower' : (isMiddle ? 'middle' : 'upper');
+    layerGroups[layerKey].push(levelGroup);
+
+    // Store original position for explode
+    levelGroup.userData.originalY = currentY;
+    levelGroup.userData.levelIndex = i;
+    levelGroup.userData.isLower = isLower;
+
+    bodyGroup.add(levelGroup);
+    currentY += height + 1.1;
+  }
+
+  // Make the entire body clickable
+  makeClickable(bodyGroup, {
+    name: '飞虹塔主体',
+    tag: 'PAGODA BODY',
+    subtitle: '八角十三级楼阁式砖塔 · 琉璃装饰',
+    description: '飞虹塔为八角十三级楼阁式砖塔，通高47.31米，是世界最高的多彩琉璃塔。塔身外壁全部用彩色琉璃装饰，从下至上逐层收分，形成优美的抛物线轮廓。每层均设八角形塔檐，檐下施斗拱，各面设佛龛或门窗，结构精巧，造型秀丽。塔内设阶梯通道，可盘旋登至塔顶。',
+    stats: [
+      { label: '通高', value: '47.31米' },
+      { label: '层数', value: '十三级' },
+      { label: '平面形状', value: '八角形' },
+      { label: '结构类型', value: '楼阁式砖塔' }
+    ],
+    sections: [
+      { title: '建筑形制', content: '飞虹塔采用八角形平面，是中国佛塔成熟期的标准形制。十三级层数在佛塔中较为少见，象征佛教十三天。塔身从底层向上逐层收分，比例匀称，轮廓呈优美的抛物线形。' },
+      { title: '砖砌结构', content: '塔体以青砖砌筑，内部为实心与空心相结合的结构。外墙厚实，内设螺旋形阶梯通道。各层楼板原为木构，后改为砖砌券洞。塔壁设有佛龛，供信众礼佛。' },
+      { title: '琉璃装饰', content: '塔身外壁自基至顶全部镶贴彩色琉璃构件，包括佛像、菩萨、天王、金刚、力士、龙凤、花卉、鸟兽等各种纹饰。琉璃色彩丰富，有黄、绿、蓝、白、褐等多种釉色，在阳光下五彩斑斓，如雨后彩虹，故名"飞虹"。' }
+    ]
+  });
+
+  towerGroup.add(bodyGroup);
+  return bodyGroup;
+}
+
+// ==================== Build Lower Levels Detail (1-3) ====================
+function buildLowerLevelsDetail() {
+  const detailGroup = new THREE.Group();
+
+  // Extra detailed decorations for levels 1-3
+  // Dragons coiling around the tower
+  for (let level = 0; level < 3; level++) {
+    const y = 4.5 + level * 3.8;
+    const radius = 8.5 - level * 0.25;
+
+    // Dragon body (torus segments)
+    for (let seg = 0; seg < 8; seg++) {
+      const startAngle = (seg / 8) * Math.PI * 2;
+      const endAngle = startAngle + Math.PI / 4;
+      const dragonGeo = new THREE.TorusGeometry(radius + 0.3, 0.18, 8, 16, Math.PI / 4);
+      const dragonMat = level === 0 ? matLiuliYellow.clone() : (level === 1 ? matLiuliGreen.clone() : matLiuliBlue.clone());
+      dragonMat.emissiveIntensity = 0.15;
+      const dragon = new THREE.Mesh(dragonGeo, dragonMat);
+      dragon.position.y = y + 2.5;
+      dragon.rotation.x = Math.PI / 2;
+      dragon.rotation.z = -startAngle;
+      dragon.castShadow = true;
+      detailGroup.add(dragon);
+    }
+
+    // Dragon head (larger sphere)
+    const headAngle = level * Math.PI / 4;
+    const headGeo = new THREE.SphereGeometry(0.4, 12, 8);
+    const headMat = matGold.clone();
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.set(
+      Math.cos(headAngle) * (radius + 0.3),
+      y + 2.5,
+      Math.sin(headAngle) * (radius + 0.3)
+    );
+    head.scale.set(1.5, 1, 1);
+    detailGroup.add(head);
+
+    // Lotus flowers
+    for (let f = 0; f < 8; f++) {
+      const angle = (f / 8) * Math.PI * 2 + Math.PI / 16;
+      const lotusGeo = new THREE.SphereGeometry(0.3, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+      const lotusMat = matLiuliWhite.clone();
+      lotusMat.emissiveIntensity = 0.1;
+      const lotus = new THREE.Mesh(lotusGeo, lotusMat);
+      lotus.position.set(
+        Math.cos(angle) * (radius + 0.2),
+        y + 0.5,
+        Math.sin(angle) * (radius + 0.2)
+      );
+      lotus.scale.set(1, 0.5, 1);
+      detailGroup.add(lotus);
+    }
+
+    // Vajra warriors (金刚) at corners
+    for (let c = 0; c < 4; c++) {
+      const angle = (c / 4) * Math.PI * 2 + Math.PI / 8;
+      const warriorGeo = new THREE.CapsuleGeometry(0.2, 0.6, 4, 8);
+      const warriorMat = matLiuliBrown.clone();
+      warriorMat.emissiveIntensity = 0.1;
+      const warrior = new THREE.Mesh(warriorGeo, warriorMat);
+      warrior.position.set(
+        Math.cos(angle) * (radius + 0.15),
+        y + 1.5,
+        Math.sin(angle) * (radius + 0.15)
+      );
+      warrior.scale.set(1.2, 1, 1.2);
+      detailGroup.add(warrior);
+    }
+  }
+
+  makeClickable(detailGroup, {
+    name: '一至三层琉璃装饰',
+    tag: 'LOWER LEVELS · FINEST GLAZED TILE',
+    subtitle: '飞虹塔最精致部分 · 明代琉璃工艺巅峰',
+    description: '飞虹塔一至三层是琉璃装饰最为丰富精致的部分。这三层集中了塔上最精美的琉璃艺术品，包括盘龙、飞凤、狮子、大象、天王、金刚、菩萨、花卉等各种形象。每面塔身均设有佛龛，龛内供奉琉璃佛像。层间施以斗拱、莲瓣、云纹等装饰，色彩斑斓，工艺精湛，代表了中国明代琉璃工艺的最高水平。',
+    stats: [
+      { label: '装饰范围', value: '一至三层' },
+      { label: '琉璃种类', value: '佛像·龙凤·花卉·天王' },
+      { label: '主要釉色', value: '黄·绿·蓝·白·褐' },
+      { label: '工艺水平', value: '明代琉璃巅峰' }
+    ],
+    sections: [
+      { title: '盘龙装饰', content: '一层塔身有琉璃盘龙缠绕，龙身鳞甲分明，张牙舞爪，气势磅礴。龙为五爪金龙，象征皇家气派。据传此龙为明代宫廷匠师所制，代表当时琉璃工艺的最高水平。' },
+      { title: '佛龛造像', content: '每面塔身设琉璃佛龛，内供佛像、菩萨像。造像面容庄严，衣纹流畅，具有典型的明代造像风格。佛像背后有背光装饰，以黄、绿琉璃制成，光彩夺目。' },
+      { title: '斗拱装饰', content: '各层塔檐下施以琉璃斗拱，模仿木构建筑的做法。斗拱以绿色琉璃为主，间以黄、蓝点缀，既具结构功能，又有极强的装饰效果。' },
+      { title: '色彩搭配', content: '一至三层琉璃色彩最为丰富，黄色象征皇室尊贵，绿色代表生机，蓝色寓意天空，白色表示纯净，褐色体现沉稳。五色交辉，在阳光下如彩虹飞架，故名"飞虹"。' }
+    ]
+  });
+
+  layerGroups.lower.push(detailGroup);
+  towerGroup.add(detailGroup);
+  return detailGroup;
+}
+
+// ==================== Build Buddha & Bodhisattva Figures ====================
+function buildBuddhaFigures() {
+  const figuresGroup = new THREE.Group();
+
+  // Buddha and Bodhisattva figures on different levels
+  const figureData = [
+    { level: 0, type: 'buddha', mat: matGold },
+    { level: 1, type: 'bodhisattva', mat: matLiuliWhite },
+    { level: 2, type: 'buddha', mat: matGold },
+    { level: 3, type: 'bodhisattva', mat: matLiuliYellow },
+    { level: 4, type: 'buddha', mat: matGold },
+    { level: 6, type: 'bodhisattva', mat: matLiuliWhite },
+    { level: 8, type: 'buddha', mat: matGold },
+    { level: 10, type: 'bodhisattva', mat: matLiuliYellow }
+  ];
+
+  figureData.forEach(data => {
+    const y = 5 + data.level * 3.8;
+    const radius = 8.5 - data.level * 0.25;
+
+    for (let face = 0; face < 8; face++) {
+      const angle = (face / 8) * Math.PI * 2 - Math.PI / 8;
+      const fx = Math.cos(angle) * (radius + 0.02);
+      const fz = Math.sin(angle) * (radius + 0.02);
+
+      // Halo/mandorla
+      const haloGeo = new THREE.TorusGeometry(0.45, 0.06, 8, 16);
+      const haloMat = matGold.clone();
+      haloMat.emissiveIntensity = 0.2;
+      const halo = new THREE.Mesh(haloGeo, haloMat);
+      halo.position.set(fx, y + 1, fz);
+      halo.lookAt(0, y + 1, 0);
+      figuresGroup.add(halo);
+
+      // Body
+      const bodyGeo = new THREE.CapsuleGeometry(0.25, 0.5, 4, 8);
+      const figure = new THREE.Mesh(bodyGeo, data.mat.clone());
+      figure.position.set(fx * 0.98, y + 0.7, fz * 0.98);
+      figure.castShadow = true;
+      figuresGroup.add(figure);
+
+      // Head
+      const headGeo = new THREE.SphereGeometry(0.22, 12, 8);
+      const head = new THREE.Mesh(headGeo, data.mat.clone());
+      head.position.set(fx * 0.98, y + 1.15, fz * 0.98);
+      figuresGroup.add(head);
+
+      // Lotus throne
+      const lotusGeo = new THREE.SphereGeometry(0.3, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+      const lotusMat = matLiuliGreen.clone();
+      const lotus = new THREE.Mesh(lotusGeo, lotusMat);
+      lotus.position.set(fx * 0.98, y + 0.35, fz * 0.98);
+      lotus.scale.set(1, 0.4, 1);
+      figuresGroup.add(lotus);
+    }
+  });
+
+  makeClickable(figuresGroup, {
+    name: '塔身佛像与菩萨',
+    tag: 'BUDDHA & BODHISATTVA FIGURES',
+    subtitle: '琉璃造像 · 明代佛教艺术珍品',
+    description: '飞虹塔各层均饰有琉璃佛像和菩萨造像。佛像结跏趺坐于莲花座上，面容庄严，双目微闭，肉髻高耸，身披袈裟。菩萨像头戴宝冠，身饰璎珞，姿态优美。所有造像均为琉璃烧制，色彩鲜艳，造型生动，是研究明代佛教造像艺术的重要实物资料。',
+    stats: [
+      { label: '造像数量', value: '百余尊' },
+      { label: '主要题材', value: '佛·菩萨·天王·金刚' },
+      { label: '材质', value: '多彩琉璃' },
+      { label: '年代', value: '明嘉靖年间' }
+    ],
+    sections: [
+      { title: '佛像造型', content: '塔身佛像均为结跏趺坐式，手印各异，有禅定印、说法印、施无畏印等。佛像面相方圆，肉髻高耸，身着通肩袈裟，衣纹流畅，具有典型的明代造像特征。' },
+      { title: '菩萨形象', content: '菩萨像头戴宝冠，身披天衣，佩饰璎珞臂钏。观音菩萨手持净瓶杨柳，文殊菩萨骑狮，普贤菩萨乘象，各具特征。造像姿态优美，比例匀称。' },
+      { title: '天王与金刚', content: '塔身四角塑有天王和金刚力士像。天王身披铠甲，手持法器，面目威严。金刚力士肌肉饱满，姿态刚劲，作护法之状。这些造像色彩浓烈，富有力量感。' }
+    ]
+  });
+
+  towerGroup.add(figuresGroup);
+  return figuresGroup;
+}
+
+// ==================== Build Liuli (Glazed Tile) Decoration Layer ====================
+function buildLiuliDecoration() {
+  const liuliGroup = new THREE.Group();
+
+  // Colored glazed tile patterns on all levels
+  const numLevels = 13;
+  for (let i = 0; i < numLevels; i++) {
+    const y = 4.5 + i * 3.8;
+    const radius = 8.5 - i * 0.25;
+
+    // Glazed tile pattern bands
+    for (let face = 0; face < 8; face++) {
+      const angle = (face / 8) * Math.PI * 2 - Math.PI / 8;
+
+      // Pattern strip
+      const stripGeo = new THREE.PlaneGeometry(1.5, 0.4);
+      const stripMat = liuliMaterials[(face + i) % liuliMaterials.length].clone();
+      stripMat.emissiveIntensity = 0.1;
+      stripMat.side = THREE.DoubleSide;
+      const strip = new THREE.Mesh(stripGeo, stripMat);
+      strip.position.set(
+        Math.cos(angle) * (radius + 0.15),
+        y + 1.8,
+        Math.sin(angle) * (radius + 0.15)
+      );
+      strip.lookAt(0, y + 1.8, 0);
+      liuliGroup.add(strip);
+
+      // Small decorative circles (flower patterns)
+      for (let s = 0; s < 3; s++) {
+        const circleGeo = new THREE.CircleGeometry(0.12, 8);
+        const circleMat = liuliMaterials[(face + s + i + 1) % liuliMaterials.length];
+        const circle = new THREE.Mesh(circleGeo, circleMat);
+        circle.position.set(
+          Math.cos(angle) * (radius + 0.16),
+          y + 2.2 + s * 0.3,
+          Math.sin(angle) * (radius + 0.16)
+        );
+        circle.lookAt(0, y + 2.2 + s * 0.3, 0);
+        liuliGroup.add(circle);
+      }
+
+      // Bird and beast decorations (simplified as small cones)
+      if (i < 5) {
+        const birdGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
+        const birdMat = liuliMaterials[(face + 2) % liuliMaterials.length];
+        const bird = new THREE.Mesh(birdGeo, birdMat);
+        bird.position.set(
+          Math.cos(angle) * (radius + 0.2),
+          y + 2.5,
+          Math.sin(angle) * (radius + 0.2)
+        );
+        bird.lookAt(
+          Math.cos(angle) * 5,
+          y + 2.5,
+          Math.sin(angle) * 5
+        );
+        bird.rotation.x = Math.PI / 2;
+        liuliGroup.add(bird);
+      }
+    }
+  }
+
+  makeClickable(liuliGroup, {
+    name: '多彩琉璃装饰',
+    tag: 'POLYCHROME GLAZED TILE',
+    subtitle: '黄绿蓝白褐 · 五色琉璃映日虹',
+    description: '飞虹塔外壁全部用彩色琉璃装饰，是中国现存最大、最高、最完整的琉璃塔。琉璃构件种类繁多，包括佛像、菩萨、天王、金刚、力士、龙凤、狮子、大象、花卉、鸟兽、云纹、莲瓣等各种纹饰。釉色丰富多彩，有黄、绿、蓝、白、褐等多种颜色，在阳光照射下五彩斑斓，如雨后彩虹，故名"飞虹塔"。',
+    stats: [
+      { label: '琉璃种类', value: '数百种构件' },
+      { label: '主要釉色', value: '黄·绿·蓝·白·褐' },
+      { label: '装饰面积', value: '塔身全覆盖' },
+      { label: '世界之最', value: '最高多彩琉璃塔' }
+    ],
+    sections: [
+      { title: '琉璃工艺', content: '飞虹塔琉璃采用传统低温铅釉工艺，以石英、长石为胎料，表面施铅釉烧制。釉色以铜、铁、钴等金属氧化物为呈色剂，烧成后色彩鲜艳，光泽明亮。明代琉璃工艺已臻成熟，飞虹塔是其集大成之作。' },
+      { title: '构件类型', content: '琉璃构件分为瓦件、脊件、饰件三大类。瓦件包括筒瓦、板瓦；脊件包括正脊、垂脊、戗脊；饰件包括吻兽、走兽、仙人等。另有专门定制的佛像、菩萨等宗教题材构件。' },
+      { title: '色彩寓意', content: '黄色属土，居中，象征尊贵；绿色属木，主生发，象征春天与生机；蓝色属水，象征天空与清净；白色属金，象征纯净与神圣；褐色属土，象征沉稳与厚重。五色配五行，暗合中国传统宇宙观。' },
+      { title: '保护价值', content: '飞虹塔琉璃装饰至今保存基本完好，是中国明代琉璃工艺的杰出代表。1961年被列为第一批全国重点文物保护单位。其琉璃构件为研究明代建筑、雕塑、工艺美术提供了珍贵的实物资料。' }
+    ]
+  });
+
+  towerGroup.add(liuliGroup);
+  return liuliGroup;
+}
+
+// ==================== Build Finial (塔刹) ====================
+function buildFinial() {
+  const finialGroup = new THREE.Group();
+  const topY = 4.5 + 13 * 3.8 - 1;
+
+  // Base of finial (须弥座)
+  const baseGeo = new THREE.CylinderGeometry(2.5, 3, 1, 8);
+  const base = new THREE.Mesh(baseGeo, matLiuliYellow.clone());
+  base.position.y = topY + 0.5;
+  base.castShadow = true;
+  finialGroup.add(base);
+
+  // Lotus throne
+  const lotusGeo = new THREE.SphereGeometry(2, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  const lotusMat = matLiuliWhite.clone();
+  lotusMat.emissiveIntensity = 0.15;
+  const lotus = new THREE.Mesh(lotusGeo, lotusMat);
+  lotus.position.y = topY + 1.2;
+  lotus.scale.set(1, 0.5, 1);
+  finialGroup.add(lotus);
+
+  // First sphere (宝珠)
+  const sphere1Geo = new THREE.SphereGeometry(1.2, 16, 12);
+  const sphere1 = new THREE.Mesh(sphere1Geo, matGold.clone());
+  sphere1.material.emissiveIntensity = 0.25;
+  sphere1.position.y = topY + 2.5;
+  sphere1.castShadow = true;
+  finialGroup.add(sphere1);
+
+  // Middle disc (相轮)
+  for (let i = 0; i < 5; i++) {
+    const discGeo = new THREE.CylinderGeometry(1.5 - i * 0.12, 1.5 - i * 0.12, 0.25, 16);
+    const discMat = matLiuliYellow.clone();
+    discMat.emissiveIntensity = 0.15;
+    const disc = new THREE.Mesh(discGeo, discMat);
+    disc.position.y = topY + 3.5 + i * 0.4;
+    disc.castShadow = true;
+    finialGroup.add(disc);
+  }
+
+  // Upper sphere
+  const sphere2Geo = new THREE.SphereGeometry(0.8, 16, 12);
+  const sphere2 = new THREE.Mesh(sphere2Geo, matGold.clone());
+  sphere2.material.emissiveIntensity = 0.3;
+  sphere2.position.y = topY + 6;
+  finialGroup.add(sphere2);
+
+  // Spire (宝顶针)
+  const spireGeo = new THREE.ConeGeometry(0.15, 2.5, 8);
+  const spire = new THREE.Mesh(spireGeo, matGold.clone());
+  spire.material.emissiveIntensity = 0.3;
+  spire.position.y = topY + 7.5;
+  spire.castShadow = true;
+  finialGroup.add(spire);
+
+  // Decorative chains (4 chains from spire to eaves)
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2;
+    const points = [];
+    for (let j = 0; j <= 20; j++) {
+      const t = j / 20;
+      const x = Math.cos(angle) * (0.5 + t * 4);
+      const y = topY + 8 - t * 6;
+      const z = Math.sin(angle) * (0.5 + t * 4);
+      points.push(new THREE.Vector3(x, y, z));
+    }
+    const chainGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 20, 0.04, 6);
+    const chainMat = matGold.clone();
+    chainMat.emissiveIntensity = 0.15;
+    const chain = new THREE.Mesh(chainGeo, chainMat);
+    finialGroup.add(chain);
+  }
+
+  // Small bells hanging from chains
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2;
+    for (let j = 1; j <= 3; j++) {
+      const t = j / 4;
+      const bellGeo = new THREE.ConeGeometry(0.12, 0.3, 6);
+      const bell = new THREE.Mesh(bellGeo, matGold.clone());
+      bell.position.set(
+        Math.cos(angle) * (0.5 + t * 4),
+        topY + 8 - t * 6,
+        Math.sin(angle) * (0.5 + t * 4)
+      );
+      bell.rotation.x = Math.PI;
+      finialGroup.add(bell);
+    }
+  }
+
+  makeClickable(finialGroup, {
+    name: '塔刹',
+    tag: 'FINIAL · SUMMIT',
+    subtitle: '宝瓶相轮 · 鎏金塔刹',
+    description: '飞虹塔塔刹位于塔顶正中，由须弥座、莲花座、宝瓶、相轮、宝珠、仰月、宝顶针等组成。整个塔刹高大挺拔，金碧辉煌，是塔身垂直轴线的完美收束。塔刹上悬有风铎（铜铃），风吹铃鸣，清越悠远。四根铁链从刹顶斜拉至塔檐四角，既加固塔刹，又增添装饰效果。',
+    stats: [
+      { label: '高度', value: '约8米' },
+      { label: '主要构件', value: '宝瓶·相轮·宝珠' },
+      { label: '材质', value: '鎏金黄铜·琉璃' },
+      { label: '风铎数量', value: '数十枚' }
+    ],
+    sections: [
+      { title: '塔刹结构', content: '塔刹自下而上依次为：须弥座、莲花座、宝瓶、五重相轮、仰月、宝珠、宝顶尖。每一构件都有特定佛教寓意，整体象征佛法的至高无上。' },
+      { title: '相轮寓意', content: '相轮（又称露盘）是塔刹的重要组成部分，五重相轮象征佛法的五智。相轮逐层收小，形成优美的圆锥轮廓，与塔身呼应。' },
+      { title: '风铎清音', content: '塔刹及各层檐角悬挂铜制风铎（风铃），微风吹过，铃声叮当，远闻数里。古人以铃声喻佛法之音，谓"闻铃声者，烦恼轻减"。' }
+    ]
+  });
+
+  layerGroups.finial.push(finialGroup);
+  towerGroup.add(finialGroup);
+  return finialGroup;
+}
+
+// ==================== Build Interior Structure ====================
+function buildInteriorStructure() {
+  const interiorGroup = new THREE.Group();
+  interiorGroup.visible = false; // Hidden by default
+
+  // Central pillar
+  const pillarGeo = new THREE.CylinderGeometry(0.8, 1.2, 45, 8);
+  const pillarMat = new THREE.MeshStandardMaterial({ color: 0x4a3828, roughness: 0.8, transparent: true, opacity: 0.5 });
+  const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+  pillar.position.y = 24;
+  interiorGroup.add(pillar);
+
+  // Spiral staircase
+  const stairGroup = new THREE.Group();
+  for (let i = 0; i < 80; i++) {
+    const angle = (i / 80) * Math.PI * 2 * 8; // 8 full turns
+    const y = 3 + i * 0.5;
+    const r = 4 - (i / 80) * 1.5;
+    const stepGeo = new THREE.BoxGeometry(2.5, 0.15, 0.8);
+    const stepMat = new THREE.MeshStandardMaterial({ color: 0x6a5038, roughness: 0.8, transparent: true, opacity: 0.6 });
+    const step = new THREE.Mesh(stepGeo, stepMat);
+    step.position.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+    step.rotation.y = angle + Math.PI / 2;
+    stairGroup.add(step);
+  }
+  interiorGroup.add(stairGroup);
+
+  // Floor levels
+  for (let i = 0; i < 13; i++) {
+    const y = 4.5 + i * 3.8;
+    const radius = 8.5 - i * 0.25;
+    const floorGeo = new THREE.CylinderGeometry(radius - 1.5, radius - 1.5, 0.1, 8);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x5a4028, roughness: 0.7, transparent: true, opacity: 0.3 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.position.y = y;
+    interiorGroup.add(floor);
+  }
+
+  // Inner wall
+  for (let i = 0; i < 13; i++) {
+    const y = 4.5 + i * 3.8;
+    const radius = 8.5 - i * 0.25;
+    const wallGeo = new THREE.CylinderGeometry(radius - 1, radius - 1.5, 3.5, 8, 1, true);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a3828, roughness: 0.8, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+    const wall = new THREE.Mesh(wallGeo, wallMat);
+    wall.position.y = y + 1.5;
+    interiorGroup.add(wall);
+  }
+
+  makeClickable(interiorGroup, {
+    name: '内部阶梯结构',
+    tag: 'INTERIOR · SPIRAL STAIRCASE',
+    subtitle: '螺旋石阶 · 可登塔顶',
+    description: '飞虹塔内部设有螺旋形阶梯通道，从底层可盘旋而上直达塔顶。塔内各层均设楼板和佛龛，供信众登临礼佛。阶梯以砖石砌筑，狭窄陡峭，仅容一人通过。攀登过程中，可通过塔身窗户眺望外景。内部结构体现了中国古代建筑工匠的高超技艺。',
+    stats: [
+      { label: '阶梯类型', value: '螺旋形砖砌' },
+      { label: '可登层数', value: '十三层' },
+      { label: '通道宽度', value: '约0.6-0.8米' },
+      { label: '内部佛龛', value: '各层均有' }
+    ],
+    sections: [
+      { title: '阶梯设计', content: '塔内螺旋阶梯围绕中央塔柱盘旋而上，共约160余级台阶。阶梯坡度约50-60度，较为陡峭。各层设休息平台，供登塔者歇息观景。' },
+      { title: '内部佛龛', content: '塔内各层均设有佛龛，供奉小型佛像。龛旁多有题记，记录捐资建塔者的姓名和年代，为研究飞虹塔历史提供了重要文字资料。' },
+      { title: '《赵城金藏》秘藏', content: '金代皇统年间（1141-1149），广胜寺僧人将耗时数十年刊刻的《赵城金藏》藏于飞虹塔内。这部大藏经共6980卷，是中国佛教文献珍宝。1933年被重新发现，后转移至北京国家图书馆保存。' }
+    ]
+  });
+
+  layerGroups.interior.push(interiorGroup);
+  towerGroup.add(interiorGroup);
+  return interiorGroup;
+}
+
+// ==================== Build All Parts ====================
+buildBase();
+buildTowerBody();
+buildLowerLevelsDetail();
+buildBuddhaFigures();
+buildLiuliDecoration();
+buildFinial();
+buildInteriorStructure();
+
+// Center the tower
+towerGroup.position.y = -2;
+
+// ==================== Particle Effects (floating dust) ====================
+const particleCount = 300;
+const particleGeo = new THREE.BufferGeometry();
+const particlePositions = new Float32Array(particleCount * 3);
+const particleSpeeds = new Float32Array(particleCount);
+
+for (let i = 0; i < particleCount; i++) {
+  particlePositions[i * 3] = (Math.random() - 0.5) * 100;
+  particlePositions[i * 3 + 1] = Math.random() * 60;
+  particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 100;
+  particleSpeeds[i] = 0.02 + Math.random() * 0.03;
+}
+particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+const particleMat = new THREE.PointsMaterial({
+  color: 0xd4a544,
+  size: 0.15,
+  transparent: true,
+  opacity: 0.4,
+  blending: THREE.AdditiveBlending,
+  sizeAttenuation: true
+});
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
+// ==================== Interaction ====================
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredPart = null;
+let selectedPart = null;
+const tooltip = document.getElementById('tooltip');
+const infoPanel = document.getElementById('info-panel');
+const panelContent = document.getElementById('panel-content');
+const panelClose = document.getElementById('panel-close');
+
+// Original materials storage
+clickableParts.forEach(part => {
+  part.traverse(child => {
+    if (child.isMesh && child.material) {
+      child.userData.origEmissive = child.material.emissive ? child.material.emissive.getHex() : null;
+      child.userData.origEmissiveInt = child.material.emissiveIntensity || 0;
+    }
+  });
+});
+
+function setHoverState(part, hovered) {
+  part.traverse(child => {
+    if (child.isMesh && child.material && child.material.emissive) {
+      if (hovered) {
+        if (!child.userData.hoverSaved) {
+          child.userData.hoverSaved = true;
+          child.userData.savedEmissiveInt = child.material.emissiveIntensity;
+        }
+        child.material.emissiveIntensity = Math.min(0.5, (child.userData.savedEmissiveInt || 0) + 0.25);
+        if (child.material.emissive) {
+          child.material.emissive.setHex(0xd4a544);
+        }
+      } else {
+        if (child.userData.hoverSaved) {
+          child.material.emissiveIntensity = child.userData.savedEmissiveInt || 0;
+          if (child.userData.origEmissive !== null) {
+            child.material.emissive.setHex(child.userData.origEmissive);
+          }
+          child.userData.hoverSaved = false;
+        }
+      }
+    }
+  });
+}
+
+function onMouseMove(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(clickableParts, true);
+
+  // Find the clickable parent
+  let foundPart = null;
+  if (intersects.length > 0) {
+    let obj = intersects[0].object;
+    while (obj && !obj.userData.partInfo) {
+      obj = obj.parent;
+    }
+    if (obj && obj.userData.partInfo) {
+      foundPart = obj;
+    }
+  }
+
+  if (foundPart !== hoveredPart) {
+    if (hoveredPart) setHoverState(hoveredPart, false);
+    hoveredPart = foundPart;
+    if (hoveredPart) {
+      setHoverState(hoveredPart, true);
+      tooltip.textContent = hoveredPart.userData.partInfo.name;
+      tooltip.classList.add('visible');
+      document.body.style.cursor = 'pointer';
+    } else {
+      tooltip.classList.remove('visible');
+      document.body.style.cursor = 'default';
+    }
+  }
+
+  if (hoveredPart) {
+    tooltip.style.left = (event.clientX + 15) + 'px';
+    tooltip.style.top = (event.clientY + 15) + 'px';
+  }
+}
+
+function onClick(event) {
+  if (hoveredPart) {
+    showInfoPanel(hoveredPart.userData.partInfo);
+  }
+}
+
+function showInfoPanel(info) {
+  let html = `<div class="panel-tag">${info.tag}</div>`;
+  html += `<div class="panel-title">${info.name}</div>`;
+  html += `<div class="panel-subtitle">${info.subtitle}</div>`;
+
+  if (info.stats) {
+    html += `<div class="panel-stats">`;
+    info.stats.forEach(s => {
+      html += `<div class="stat-item"><div class="stat-label">${s.label}</div><div class="stat-value">${s.value}</div></div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<div class="panel-section"><div class="panel-section-title">详细描述</div><div class="panel-section-content">${info.description}</div></div>`;
+
+  if (info.sections) {
+    info.sections.forEach(sec => {
+      html += `<div class="panel-section"><div class="panel-section-title">${sec.title}</div><div class="panel-section-content">${sec.content}</div></div>`;
+    });
+  }
+
+  panelContent.innerHTML = html;
+  infoPanel.classList.add('open');
+}
+
+panelClose.addEventListener('click', () => {
+  infoPanel.classList.remove('open');
+});
+
+window.addEventListener('mousemove', onMouseMove);
+window.addEventListener('click', onClick);
+
+// ==================== Controls ====================
+let autoRotate = false;
+let explodeView = false;
+
+document.getElementById('btn-rotate').addEventListener('click', (e) => {
+  autoRotate = !autoRotate;
+  controls.autoRotate = autoRotate;
+  e.currentTarget.classList.toggle('active', autoRotate);
+});
+
+document.getElementById('btn-explode').addEventListener('click', (e) => {
+  explodeView = !explodeView;
+  e.currentTarget.classList.toggle('active', explodeView);
+  applyExplodeView(explodeView);
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  // Animate camera back to default
+  const startPos = camera.position.clone();
+  const endPos = new THREE.Vector3(55, 40, 55);
+  const startTarget = controls.target.clone();
+  const endTarget = new THREE.Vector3(0, 20, 0);
+  const duration = 1000;
+  const startTime = Date.now();
+
+  function animateReset() {
+    const elapsed = Date.now() - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+
+    camera.position.lerpVectors(startPos, endPos, ease);
+    controls.target.lerpVectors(startTarget, endTarget, ease);
+    controls.update();
+
+    if (t < 1) requestAnimationFrame(animateReset);
+  }
+  animateReset();
+});
+
+function applyExplodeView(exploded) {
+  const bodyLevels = towerGroup.children.filter(c => c.children && c.children.length > 0);
+
+  // Get all level groups (those with userData.levelIndex)
+  towerGroup.traverse(child => {
+    if (child.userData.levelIndex !== undefined) {
+      const originalY = child.userData.originalY;
+      const offset = exploded ? child.userData.levelIndex * 1.5 : 0;
+      child.position.y = offset;
+    }
+  });
+
+  if (exploded) {
+    // Separate finial
+    towerGroup.traverse(child => {
+      if (child === towerGroup.children.find(c => c.userData.partInfo && c.userData.partInfo.tag === 'FINIAL · SUMMIT')) {
+        child.position.y += 8;
+      }
+    });
+  } else {
+    towerGroup.traverse(child => {
+      if (child === towerGroup.children.find(c => c.userData.partInfo && c.userData.partInfo.tag === 'FINIAL · SUMMIT')) {
+        child.position.y -= 8;
+      }
+    });
+  }
+}
+
+// ==================== Layer Selector ====================
+const layerButtons = document.querySelectorAll('.layer-btn');
+const interiorGroup = layerGroups.interior[0];
+
+layerButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    layerButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const layer = btn.dataset.layer;
+
+    if (layer === 'all') {
+      Object.values(layerGroups).forEach(group => {
+        group.forEach(g => g.visible = true);
+      });
+      interiorGroup.visible = false; // Keep interior hidden by default
+    } else if (layer === 'interior') {
+      Object.values(layerGroups).forEach(group => {
+        group.forEach(g => g.visible = false);
+      });
+      interiorGroup.visible = true;
+    } else {
+      Object.values(layerGroups).forEach(group => {
+        group.forEach(g => g.visible = false);
+      });
+      if (layerGroups[layer]) {
+        layerGroups[layer].forEach(g => g.visible = true);
+      }
+      // Always show base for context
+      if (layer !== 'base' && layer !== 'interior') {
+        layerGroups.base.forEach(g => g.visible = true);
+      }
+    }
+  });
+});
+
+// ==================== Resize Handler ====================
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ==================== Animation Loop ====================
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+
+  // Animate particles
+  const positions = particleGeo.attributes.position.array;
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3 + 1] += particleSpeeds[i];
+    if (positions[i * 3 + 1] > 60) {
+      positions[i * 3 + 1] = 0;
+    }
+    positions[i * 3] += Math.sin(Date.now() * 0.0003 + i) * 0.01;
+  }
+  particleGeo.attributes.position.needsUpdate = true;
+
+  // Subtle glow pulse on the tower
+  const time = Date.now() * 0.001;
+  if (fillLight) {
+    fillLight.intensity = 0.4 + Math.sin(time) * 0.08;
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ==================== Initialize ====================
+// Hide loading screen after a delay
+setTimeout(() => {
+  document.getElementById('loading-screen').classList.add('hidden');
+  setTimeout(() => {
+    document.getElementById('loading-screen').style.display = 'none';
+  }, 1200);
+}, 1800);
+
+window.THREE = THREE;
+window.scene = scene;
+window.camera = camera;
+window.renderer = renderer;
+animate();
+
+</script>
+<script src="theme.js"></script>
+</body>
+</html>

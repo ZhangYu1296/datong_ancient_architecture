@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>平遥双林寺 · 三维交互模型</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231a1410'/%3E<path d='M32 10 L50 22 L50 40 L32 54 L14 40 L14 22 Z' fill='%23c9a84c'/%3E<path d='M22 24 L42 24 M22 30 L42 30 M22 36 L42 36' stroke='%231a1410' stroke-width='2.5'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --ink: #1a1209;
+    --paper: #f4e8d0;
+    --paper-dim: #e8d9bc;
+    --vermillion: #a83c2c;
+    --vermillion-bright: #c94a37;
+    --gold: #c9a84c;
+    --gold-bright: #e0c068;
+    --wood: #6b4a2e;
+    --wood-light: #8a6240;
+    --wood-dark: #3d2817;
+    --jade: #5a7c6a;
+    --shadow: rgba(26, 18, 9, 0.45);
+    --glow: rgba(201, 168, 76, 0.35);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  #canvas-container {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse at 50% 60%, #2a1d10 0%, #150e07 70%, #0a0603 100%);
+  }
+
+  #canvas-container canvas { display: block; }
+
+  /* ── Loading ── */
+  #loader {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, #2a1d10 0%, #0a0603 100%);
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+  #loader.hidden { opacity: 0; visibility: hidden; }
+
+  .loader-title {
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 3rem; color: var(--gold);
+    letter-spacing: 0.5rem; margin-bottom: 1.5rem;
+    text-shadow: 0 0 20px var(--glow);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .loader-sub {
+    font-size: 0.9rem; color: var(--paper-dim);
+    letter-spacing: 0.3rem; opacity: 0.7;
+    margin-bottom: 2rem;
+  }
+  .loader-bar-wrap {
+    width: 280px; height: 3px;
+    background: rgba(201, 168, 76, 0.15);
+    border-radius: 2px; overflow: hidden;
+  }
+  .loader-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--wood-light), var(--gold), var(--gold-bright));
+    box-shadow: 0 0 12px var(--glow);
+    transition: width 0.3s ease;
+  }
+  .loader-seal {
+    margin-top: 2.5rem; width: 64px; height: 64px;
+    border: 2px solid var(--vermillion); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 1.8rem; color: var(--vermillion-bright);
+    transform: rotate(-3deg);
+    opacity: 0.8;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Top Bar ── */
+  #topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 2rem;
+    background: linear-gradient(180deg, rgba(10,6,3,0.85) 0%, rgba(10,6,3,0) 100%);
+    pointer-events: none;
+  }
+  .topbar-left { pointer-events: auto; }
+  .topbar-title {
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 1.6rem; color: var(--gold);
+    letter-spacing: 0.15rem;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  }
+  .topbar-sub {
+    font-size: 0.72rem; color: var(--paper-dim);
+    letter-spacing: 0.2rem; opacity: 0.6;
+    margin-top: 2px;
+  }
+
+  .topbar-buttons {
+    display: flex; gap: 0.6rem; pointer-events: auto;
+  }
+  .ctrl-btn {
+    background: rgba(107, 74, 46, 0.25);
+    border: 1px solid rgba(201, 168, 76, 0.3);
+    color: var(--paper);
+    padding: 0.5rem 1rem;
+    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+    font-size: 0.8rem; letter-spacing: 0.08rem;
+    border-radius: 4px; cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+    display: flex; align-items: center; gap: 0.35rem;
+  }
+  .ctrl-btn:hover {
+    background: rgba(168, 60, 44, 0.4);
+    border-color: var(--gold);
+    color: var(--gold-bright);
+    box-shadow: 0 0 12px rgba(201,168,76,0.2);
+  }
+  .ctrl-btn.active {
+    background: rgba(168, 60, 44, 0.5);
+    border-color: var(--vermillion-bright);
+    color: var(--gold-bright);
+  }
+  .ctrl-btn svg { width: 14px; height: 14px; }
+
+  /* ── Tooltip ── */
+  #tooltip {
+    position: fixed; z-index: 200;
+    background: rgba(26, 18, 9, 0.92);
+    border: 1px solid var(--gold);
+    color: var(--paper);
+    padding: 0.5rem 0.9rem;
+    border-radius: 4px;
+    font-size: 0.82rem; letter-spacing: 0.05rem;
+    pointer-events: none;
+    opacity: 0; transition: opacity 0.2s ease;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    white-space: nowrap;
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip::before {
+    content: ''; position: absolute;
+    bottom: -5px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--gold);
+  }
+
+  /* ── Info Panel ── */
+  #info-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 300;
+    width: 420px; max-width: 90vw;
+    background: linear-gradient(180deg, rgba(15,10,5,0.97) 0%, rgba(20,14,7,0.97) 100%);
+    border-left: 1px solid rgba(201,168,76,0.25);
+    box-shadow: -10px 0 40px rgba(0,0,0,0.6);
+    transform: translateX(100%);
+    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+    padding: 2rem 1.8rem;
+  }
+  #info-panel.open { transform: translateX(0); }
+
+  .panel-close {
+    position: absolute; top: 1rem; right: 1.2rem;
+    background: none; border: none;
+    color: var(--paper-dim); font-size: 1.4rem;
+    cursor: pointer; transition: color 0.2s;
+    line-height: 1;
+  }
+  .panel-close:hover { color: var(--vermillion-bright); }
+
+  .panel-seal {
+    display: inline-block;
+    background: var(--vermillion);
+    color: var(--paper);
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 0.75rem; letter-spacing: 0.1rem;
+    padding: 0.2rem 0.6rem; border-radius: 3px;
+    margin-bottom: 0.8rem;
+  }
+  .panel-title {
+    font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+    font-size: 1.8rem; color: var(--gold-bright);
+    letter-spacing: 0.08rem;
+    margin-bottom: 0.3rem;
+    line-height: 1.3;
+  }
+  .panel-subtitle {
+    font-size: 0.8rem; color: var(--paper-dim);
+    opacity: 0.6; letter-spacing: 0.15rem;
+    margin-bottom: 1.2rem;
+  }
+  .panel-divider {
+    height: 1px;
+    background: linear-gradient(90deg, var(--gold) 0%, transparent 100%);
+    margin: 1rem 0 1.2rem;
+  }
+  .panel-section {
+    margin-bottom: 1.3rem;
+  }
+  .panel-section-title {
+    font-size: 0.78rem; color: var(--gold);
+    letter-spacing: 0.15rem; font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .panel-section-title::before {
+    content: ''; width: 3px; height: 12px;
+    background: var(--vermillion);
+    border-radius: 2px;
+  }
+  .panel-text {
+    font-size: 0.88rem; line-height: 1.8;
+    color: var(--paper); opacity: 0.85;
+    text-align: justify;
+  }
+  .panel-highlight {
+    background: rgba(201,168,76,0.08);
+    border-left: 2px solid var(--gold);
+    padding: 0.7rem 1rem;
+    margin: 0.8rem 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .panel-highlight-text {
+    font-size: 0.82rem; line-height: 1.7;
+    color: var(--gold-bright); opacity: 0.9;
+  }
+  .panel-tags {
+    display: flex; flex-wrap: wrap; gap: 0.4rem;
+    margin-top: 0.6rem;
+  }
+  .panel-tag {
+    background: rgba(107,74,46,0.3);
+    border: 1px solid rgba(201,168,76,0.2);
+    color: var(--paper-dim);
+    font-size: 0.72rem; padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    letter-spacing: 0.05rem;
+  }
+
+  /* ── Bottom Layer Selector ── */
+  #layer-selector {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    gap: 0.5rem; padding: 1rem 2rem 1.5rem;
+    background: linear-gradient(0deg, rgba(10,6,3,0.85) 0%, rgba(10,6,3,0) 100%);
+    flex-wrap: wrap;
+  }
+  .layer-btn {
+    background: rgba(26,18,9,0.6);
+    border: 1px solid rgba(201,168,76,0.2);
+    color: var(--paper-dim);
+    padding: 0.45rem 0.9rem;
+    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+    font-size: 0.76rem; letter-spacing: 0.06rem;
+    border-radius: 4px; cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+  .layer-btn:hover {
+    border-color: var(--gold);
+    color: var(--paper);
+    background: rgba(107,74,46,0.3);
+  }
+  .layer-btn.active {
+    background: rgba(168,60,44,0.35);
+    border-color: var(--vermillion-bright);
+    color: var(--gold-bright);
+    box-shadow: 0 0 10px rgba(201,168,76,0.15);
+  }
+
+  /* ── Compass ── */
+  #compass {
+    position: fixed; bottom: 5.5rem; right: 1.5rem; z-index: 100;
+    width: 60px; height: 60px;
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 50%;
+    background: rgba(26,18,9,0.5);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; color: var(--paper-dim);
+  }
+  #compass .needle {
+    position: absolute; width: 2px; height: 24px;
+    background: linear-gradient(180deg, var(--vermillion-bright) 0%, var(--vermillion-bright) 50%, var(--gold) 50%, var(--gold) 100%);
+    border-radius: 1px;
+    transform-origin: center bottom;
+  }
+  #compass .label-n {
+    position: absolute; top: 3px;
+    font-size: 0.6rem; color: var(--vermillion-bright);
+    font-weight: 700;
+  }
+
+  /* Scrollbar */
+  #info-panel::-webkit-scrollbar { width: 4px; }
+  #info-panel::-webkit-scrollbar-track { background: transparent; }
+  #info-panel::-webkit-scrollbar-thumb {
+    background: rgba(201,168,76,0.3); border-radius: 2px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .topbar-title { font-size: 1.2rem; }
+    .topbar-sub { display: none; }
+    .ctrl-btn { padding: 0.4rem 0.7rem; font-size: 0.72rem; }
+    #info-panel { width: 100vw; padding: 1.5rem; }
+    #layer-selector { padding: 0.6rem 1rem 1rem; gap: 0.3rem; }
+    .layer-btn { font-size: 0.68rem; padding: 0.35rem 0.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loader -->
+<div id="loader">
+  <div class="loader-title">双 林 寺</div>
+  <div class="loader-sub">东 方 彩 塑 艺 术 宝 库</div>
+  <div class="loader-bar-wrap"><div class="loader-bar" id="loader-bar"></div></div>
+  <div class="loader-seal">平遥</div>
+</div>
+
+<!-- Canvas -->
+<div id="canvas-container"></div>
+
+<!-- Top Bar -->
+<div id="topbar">
+  <div class="topbar-left">
+    <div class="topbar-title">平遥双林寺</div>
+    <div class="topbar-sub">SHUANGLIN TEMPLE · PINGYAO</div>
+  </div>
+  <div class="topbar-buttons">
+    <button class="ctrl-btn" id="btn-rotate" title="自动旋转">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      自动旋转
+    </button>
+    <button class="ctrl-btn" id="btn-explode" title="拆解视图">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v8M12 14v8M2 12h8M14 12h8M5 5l4 4M15 15l4 4M19 5l-4 4M9 15l-4 4"/></svg>
+      拆解视图
+    </button>
+    <button class="ctrl-btn" id="btn-reset" title="重置视角">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 109-9"/><path d="M3 4v5h5"/></svg>
+      重置视角
+    </button>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<!-- Info Panel -->
+<div id="info-panel">
+  <button class="panel-close" id="panel-close">✕</button>
+  <div id="panel-content"></div>
+</div>
+
+<!-- Compass -->
+<div id="compass">
+  <span class="label-n">N</span>
+  <div class="needle" id="compass-needle"></div>
+</div>
+
+<!-- Layer Selector -->
+<div id="layer-selector"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../three-lib/three/three.module.js",
+    "three/addons/": "../three-lib/three/addons/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ═══════════════════════════════════════════
+   DATA
+   ═══════════════════════════════════════════ */
+const TEMPLE_INFO = {
+  'tianwang': {
+    name: '天王殿',
+    subtitle: 'Hall of Heavenly Kings',
+    seal: '明·重修',
+    tags: ['四大天王', '山门', '明代建筑'],
+    desc: '天王殿是双林寺的山门兼第一进正殿，面阔五间，进深三间。殿内供奉四大天王彩塑，各持法器，威严庄重。殿两侧原有哼哈二将，现仅存遗迹。此殿是进入寺院的起始，也是整个建筑序列的门户。',
+    highlight: '四大天王彩塑高约三米，分别持剑、琵琶、伞、龙，寓意"风调雨顺"，是明代彩塑的代表性作品。',
+    sections: [
+      { title: '建筑形制', text: '面阔五间，进深三间，单檐歇山顶。砖券门洞为明代风格，门额上嵌有"双林寺"石匾。' },
+      { title: '彩塑内容', text: '四大天王分列两侧，各高约3米，体量宏大，气势威猛。东方持国天王持琵琶，南方增长天王持宝剑，西方广目天王持龙，北方多闻天王持宝伞。' },
+      { title: '艺术价值', text: '天王塑像肌肉丰满，甲胄细节繁复，面部表情夸张而生动，体现了明代工匠对人体结构和神态刻画的深厚功力。' }
+    ]
+  },
+  'shijia': {
+    name: '释迦殿',
+    subtitle: 'Shakyamuni Hall',
+    seal: '明·重建',
+    tags: ['佛传故事', '释迦牟尼', '浮雕'],
+    desc: '释迦殿为第二进正殿，内供释迦牟尼佛。殿内四壁布满佛传故事浮雕，以连环画形式展现释迦牟尼从诞生到涅槃的一生。这些浮雕构图精巧，人物众多，是研究明代佛教叙事艺术的重要实物。',
+    highlight: '佛传故事浮雕采用高浮雕与浅浮雕结合技法，人物虽小（仅20-30厘米）却神态各异，堪称明代微雕杰作。',
+    sections: [
+      { title: '主尊造像', text: '殿内正中供奉释迦牟尼佛坐像，螺髻袒胸，结跏趺坐于莲台之上，面容慈祥庄严，为明代风格。' },
+      { title: '壁面浮雕', text: '四壁以连环画形式雕刻佛传故事，从"白象投胎"到"双林入灭"，共48组场景。每组场景间以建筑、树木自然分隔，构图巧妙。' },
+      { title: '艺术特色', text: '浮雕采用高浮雕与浅浮雕结合的技法，人物仅20-30厘米高，却五官清晰、衣纹流畅，体现了极高的工艺水平。' }
+    ]
+  },
+  'daxiong': {
+    name: '大雄宝殿',
+    subtitle: 'Mahavira Hall',
+    seal: '明·重建',
+    tags: ['主殿', '三世佛', '明清建筑'],
+    desc: '大雄宝殿是双林寺第三进正殿，也是全寺规模最大的殿堂。殿内原供三世佛（燃灯佛、释迦牟尼佛、弥勒佛），代表过去、现在、未来三世。殿宇宏敞，梁架结构保存了明代建筑特征。',
+    highlight: '大雄宝殿为全寺最高大的建筑，面阔五间，单檐歇山顶，梁架用材粗大，体现了明代官式建筑的庄重气度。',
+    sections: [
+      { title: '建筑规模', text: '面阔五间，进深三间，单檐歇山顶。梁架结构为明代原物，用材粗大，做工规整。殿前设有月台，是全寺的核心空间。' },
+      { title: '主供造像', text: '殿内原供三世佛，分别为燃灯佛（过去）、释迦牟尼佛（现在）、弥勒佛（未来），现塑像已非原物。' },
+      { title: '历史地位', text: '大雄宝殿处于寺院中轴线的核心位置，是僧众集会和主要佛事活动的场所，体现了双林寺作为佛教寺院的等级规格。' }
+    ]
+  },
+  'qianfo': {
+    name: '千佛殿',
+    subtitle: 'Hall of a Thousand Buddhas',
+    seal: '明·重建',
+    tags: ['韦驮像', '二十六臂观音', '彩塑精华'],
+    desc: '千佛殿是双林寺彩塑艺术的精华所在。殿内现存彩塑五百余尊，以观音菩萨（二十六臂）和韦驮像最为著名。韦驮像被誉为"中国彩塑经典中的经典"，其刚健威武的姿态和精湛的雕塑技艺代表了明代彩塑的最高水平。',
+    highlight: '韦驮像高约1.6米，身披甲胄，右手持金刚杵，左手叉腰，身躯呈"S"形扭曲，静中寓动，被誉为中国彩塑巅峰之作。',
+    sections: [
+      { title: '韦驮像', text: '位于殿内一角，高约1.6米。头戴战盔，身披甲胄，面方鼻高，双目炯炯。身躯呈优美"S"形扭曲，右手持金刚杵拄地，左手叉腰，右腿前弓。静中寓动，刚健威武，被誉为"中国彩塑经典中的经典"。' },
+      { title: '二十六臂观音', text: '殿内正中供奉观世音菩萨，身出二十六臂，呈放射状展开，如孔雀开屏。每只手持有不同法器，造型优美，工艺繁复，是明代彩塑中罕见的密宗题材作品。' },
+      { title: '壁面悬塑', text: '殿内四壁布满悬塑，大小佛像分层排列，密密麻麻如蜂巢，总数达五百余尊，故称"千佛殿"。每尊小佛像虽仅十余厘米高，却各有姿态，无一雷同。' }
+    ]
+  },
+  'pusa': {
+    name: '菩萨殿',
+    subtitle: 'Bodhisattva Hall',
+    seal: '明·重建',
+    tags: ['千手观音', '五百菩萨壁画', '明代壁画'],
+    desc: '菩萨殿以千手观音像和五百菩萨壁画著称。殿内正中供奉千手千眼观音菩萨，四壁绘有五百菩萨赴会图壁画，色彩至今鲜艳，是明代壁画艺术的珍品。',
+    highlight: '五百菩萨壁画描绘了文殊、普贤等五百菩萨赴会场景，线条流畅，色彩艳丽，是明代寺院壁画的代表作之一。',
+    sections: [
+      { title: '千手观音', text: '殿内正中供奉千手千眼观世音菩萨，结跏趺坐于莲台之上。主手合十，其余手呈扇形展开，每只手掌心绘有慧眼，持各种法器。整体造型庄严而不失优美。' },
+      { title: '五百菩萨壁画', text: '殿内四壁绘有"五百菩萨赴会图"，描绘文殊、普贤等菩萨率众赴会的壮观场面。壁画以矿物颜料绘制，历经数百年色彩仍鲜艳。菩萨形象各异，有乘云的、骑狮的、乘象的，场面宏大。' },
+      { title: '壁画价值', text: '这组壁画是明代寺院壁画的代表性作品，其线条运用继承了唐代吴道子"吴带当风"的传统，人物衣袂飘举，具有极高的艺术价值和历史研究价值。' }
+    ]
+  },
+  'luohan': {
+    name: '罗汉殿',
+    subtitle: 'Arhat Hall',
+    seal: '明·彩塑',
+    tags: ['十八罗汉', '彩塑', '人物雕塑'],
+    desc: '罗汉殿内供奉十八罗汉彩塑，是双林寺彩塑艺术的另一组杰作。每尊罗汉都有独特的面部表情和身体姿态，或喜或怒，或静或动，个性鲜明，生活气息浓厚，堪称人物雕塑的典范。',
+    highlight: '十八罗汉各具神态——有的怒目圆睁，有的笑容可掬，有的沉思冥想，有的侃侃而谈，每尊都是独一无二的艺术品。',
+    sections: [
+      { title: '十八罗汉', text: '殿内塑有十八罗汉，分列两侧。每尊罗汉高约1.5米，坐于石台之上。各罗汉形象生动，或胖或瘦，或老或少，面部表情极其丰富。' },
+      { title: '艺术特色', text: '罗汉塑像突破了佛教造像的程式化束缚，工匠们以现实生活中的僧人为原型，赋予了每尊罗汉鲜明的个性。有的怒目圆睁，有的笑容可掬，有的沉思冥想，生活气息浓厚。' },
+      { title: '雕塑技法', text: '罗汉的衣纹处理采用了"曹衣出水"的技法，贴体流畅，体现了身体的肌肉结构。面部刻画极为精细，皱纹、骨骼、肌肉都栩栩如生，是研究明代人物雕塑的重要实物。' }
+    ]
+  },
+  'weito': {
+    name: '韦驮像',
+    subtitle: 'Skanda Statue',
+    seal: '明·国宝',
+    tags: ['彩塑巅峰', '镇寺之宝', '明代'],
+    desc: '韦驮像是双林寺最著名的单尊彩塑，位于千佛殿内。这尊塑像以其完美的身体动态、精湛的甲胄细节和刚毅威武的神态，被誉为"中国彩塑经典中的经典"，是明代彩塑艺术无可争议的巅峰之作。',
+    highlight: '韦驮像身躯呈"S"形扭曲——头、胸、髋三部各自转向不同方向，在静止中蕴含着强烈的动感，这一构图手法比西方雕塑早了数百年。',
+    sections: [
+      { title: '造像特征', text: '韦驮像高约1.6米，头戴战盔，身披甲胄，足蹬战靴。面方鼻高，双眉紧锁，双目炯炯有神，嘴角微抿，刚毅威武。右手持金刚杵拄地，左手叉腰，右腿前弓左腿后蹬。' },
+      { title: '动态之美', text: '韦驮像最令人叹服的是其身体动态——头、胸、髋三部各自转向不同方向，构成优美的"S"形螺旋扭曲。这种"以静寓动"的手法，使塑像在静止中蕴含强烈的旋转动势，比西方雕塑中的类似处理早了数百年。' },
+      { title: '甲胄细节', text: '甲胄的雕刻极为精细：盔甲上的甲片一片片清晰可数，腰带上的兽面浮雕、战裙的褶皱、战靴的结构，都刻画得一丝不苟。甲胄上原来还贴有金箔，至今仍有残留。' },
+      { title: '历史评价', text: '这尊韦驮像被美术史学界公认为中国彩塑艺术的巅峰之作，与晋祠侍女像、大同下华严寺菩萨像并称"中国彩塑三绝"，是了解明代雕塑艺术不可逾越的杰作。' }
+    ]
+  },
+  'layout': {
+    name: '寺院整体布局',
+    subtitle: 'Temple Layout',
+    seal: '综述',
+    tags: ['三进院落', '中轴线', '全国重点文物'],
+    desc: '双林寺占地约15000平方米，坐北朝南，三进院落沿中轴线递进。中轴线上依次为天王殿、释迦殿、大雄宝殿，两侧为千佛殿、菩萨殿、罗汉殿等。寺院布局严谨，建筑形式为窑洞式与木构混合，体现了晋中地区的地方特色。',
+    highlight: '双林寺现存彩塑2056尊，被誉为"东方彩塑艺术宝库"，1988年被列为第三批全国重点文物保护单位。',
+    sections: [
+      { title: '地理位置', text: '位于晋中市平遥县城西南6公里桥头村。平遥古城为世界文化遗产，双林寺是其重要组成部分。' },
+      { title: '历史沿革', text: '始建年代不详，重建于北齐武平二年（571年）。历代均有修葺，现存建筑多为明清时期所建。寺名"双林"取自佛祖释迦牟尼在双树之下涅槃的典故。' },
+      { title: '建筑布局', text: '占地约15000平方米，坐北朝南。三进院落沿中轴线递进：第一进为天王殿，第二进为释迦殿，第三进为大雄宝殿。千佛殿、菩萨殿位于东侧，罗汉殿位于西侧。' },
+      { title: '建筑特色', text: '建筑形式为砖券窑洞式与木构混合，这是晋中地区的传统建筑方式。外墙高大厚实，兼具防御功能，使寺院外观如同一座城堡。' },
+      { title: '文物价值', text: '双林寺现存彩塑2056尊，壁画1000余平方米，涵盖了从宋到清各个时期的作品。1988年被列为第三批全国重点文物保护单位。被誉为"东方彩塑艺术宝库"。' }
+    ]
+  }
+};
+
+const LAYERS = [
+  { id: 'all', label: '全景', target: 'layout' },
+  { id: 'tianwang', label: '天王殿', target: 'tianwang' },
+  { id: 'shijia', label: '释迦殿', target: 'shijia' },
+  { id: 'daxiong', label: '大雄宝殿', target: 'daxiong' },
+  { id: 'qianfo', label: '千佛殿', target: 'qianfo' },
+  { id: 'pusa', label: '菩萨殿', target: 'pusa' },
+  { id: 'luohan', label: '罗汉殿', target: 'luohan' },
+  { id: 'weito', label: '韦驮像', target: 'weito' },
+];
+
+/* ═══════════════════════════════════════════
+   THREE.JS SETUP
+   ═══════════════════════════════════════════ */
+let scene, camera, renderer, controls;
+let templeGroup;
+let buildings = [];
+let hoveredObj = null;
+let selectedObj = null;
+let autoRotate = false;
+let exploded = false;
+let raycaster, mouse;
+
+const STORAGE = { progress: 0 };
+
+function init() {
+  // Scene
+  scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x1a1209, 30, 120);
+  scene.background = new THREE.Color(0x150e07);
+
+  // Camera
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
+  camera.position.set(35, 28, 35);
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  // Controls
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.minDistance = 8;
+  controls.maxDistance = 90;
+  controls.maxPolarAngle = Math.PI / 2.1;
+  controls.target.set(0, 3, 0);
+
+  // Lights
+  setupLights();
+
+  // Raycaster
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  // Build temple
+  templeGroup = new THREE.Group();
+  scene.add(templeGroup);
+  buildTemple();
+
+  // Ground
+  buildGround();
+
+  // Particles (atmosphere)
+  buildParticles();
+
+  // Events
+  window.addEventListener('resize', onResize);
+  renderer.domElement.addEventListener('pointermove', onPointerMove);
+  renderer.domElement.addEventListener('click', onClick);
+
+  // Animate loader
+  animateLoader();
+
+  animate();
+}
+
+function setupLights() {
+  // Ambient warm light
+  const ambient = new THREE.AmbientLight(0x4a3520, 0.5);
+  scene.add(ambient);
+
+  // Main directional light (warm sunlight)
+  const sun = new THREE.DirectionalLight(0xffd9a0, 1.2);
+  sun.position.set(20, 30, 15);
+  sun.castShadow = true;
+  sun.shadow.mapSize.width = 2048;
+  sun.shadow.mapSize.height = 2048;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 100;
+  sun.shadow.camera.left = -40;
+  sun.shadow.camera.right = 40;
+  sun.shadow.camera.top = 40;
+  sun.shadow.camera.bottom = -40;
+  sun.shadow.bias = -0.0005;
+  scene.add(sun);
+
+  // Fill light from opposite side
+  const fill = new THREE.DirectionalLight(0x6b5a3a, 0.4);
+  fill.position.set(-15, 20, -10);
+  scene.add(fill);
+
+  // Hemispheric for sky/ground gradient
+  const hemi = new THREE.HemisphereLight(0x3a2a15, 0x1a0e05, 0.3);
+  scene.add(hemi);
+
+  // Point lights for warm interior glow
+  const glow1 = new THREE.PointLight(0xffa040, 0.6, 25);
+  glow1.position.set(0, 5, 0);
+  scene.add(glow1);
+
+  const glow2 = new THREE.PointLight(0xc96820, 0.4, 20);
+  glow2.position.set(-12, 4, -8);
+  scene.add(glow2);
+}
+
+/* ═══════════════════════════════════════════
+   GROUND & WALLS
+   ═══════════════════════════════════════════ */
+function buildGround() {
+  // Stone ground
+  const groundGeo = new THREE.PlaneGeometry(80, 80);
+  const groundMat = new THREE.MeshStandardMaterial({
+    color: 0x3a2d1a,
+    roughness: 0.9,
+    metalness: 0.05
+  });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Courtyard stones (decorative pattern)
+  const stoneGeo = new THREE.RingGeometry(0.3, 0.5, 6);
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x5a4a30, roughness: 0.8 });
+  for (let i = 0; i < 40; i++) {
+    const stone = new THREE.Mesh(stoneGeo, stoneMat);
+    const angle = (i / 40) * Math.PI * 2;
+    const r = 12 + Math.random() * 15;
+    stone.position.set(Math.cos(angle) * r, 0.02, Math.sin(angle) * r);
+    stone.rotation.x = -Math.PI / 2;
+    stone.rotation.z = Math.random() * Math.PI;
+    scene.add(stone);
+  }
+
+  // Outer walls (castle-like)
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x4a3520,
+    roughness: 0.85,
+    metalness: 0.05
+  });
+  const wallHeight = 4;
+  const wallThickness = 0.8;
+  const wallSize = 28;
+
+  // Four walls
+  const walls = [
+    { pos: [0, wallHeight/2, wallSize], scale: [wallSize*2, wallHeight, wallThickness] },
+    { pos: [0, wallHeight/2, -wallSize], scale: [wallSize*2, wallHeight, wallThickness] },
+    { pos: [wallSize, wallHeight/2, 0], scale: [wallThickness, wallHeight, wallSize*2] },
+    { pos: [-wallSize, wallHeight/2, 0], scale: [wallThickness, wallHeight, wallSize*2] },
+  ];
+  walls.forEach(w => {
+    const wg = new THREE.BoxGeometry(...w.scale);
+    const wm = new THREE.Mesh(wg, wallMat);
+    wm.position.set(...w.pos);
+    wm.castShadow = true;
+    wm.receiveShadow = true;
+    scene.add(wm);
+  });
+
+  // Decorative crenellations on walls
+  const crenMat = new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 0.8 });
+  for (let i = -wallSize; i <= wallSize; i += 3) {
+    if (Math.abs(i) < 3) continue; // gap for gate
+    // North and south
+    [wallSize, -wallSize].forEach(z => {
+      const cren = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.6, 0.5), crenMat);
+      cren.position.set(i, wallHeight + 0.3, z);
+      cren.castShadow = true;
+      scene.add(cren);
+    });
+  }
+
+  // Trees outside walls
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x2d1a0a, roughness: 0.9 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x3a4a2a, roughness: 0.8 });
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2 + 0.3;
+    const r = 32 + Math.random() * 6;
+    const tx = Math.cos(angle) * r;
+    const tz = Math.sin(angle) * r;
+
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 3, 8), trunkMat);
+    trunk.position.set(tx, 1.5, tz);
+    trunk.castShadow = true;
+    scene.add(trunk);
+
+    const foliage = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 8), leafMat);
+    foliage.position.set(tx, 4, tz);
+    foliage.castShadow = true;
+    scene.add(foliage);
+
+    const foliage2 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 3, 8), leafMat);
+    foliage2.position.set(tx, 5.5, tz);
+    scene.add(foliage2);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   BUILDING BUILDER
+   ═══════════════════════════════════════════ */
+
+// Material palette
+const MAT = {
+  wall: new THREE.MeshStandardMaterial({ color: 0x6b4a2e, roughness: 0.85, metalness: 0.05 }),
+  wallDark: new THREE.MeshStandardMaterial({ color: 0x4a3220, roughness: 0.85 }),
+  roof: new THREE.MeshStandardMaterial({ color: 0x2a1a0e, roughness: 0.7, metalness: 0.1 }),
+  roofRidge: new THREE.MeshStandardMaterial({ color: 0x1a0e07, roughness: 0.6 }),
+  column: new THREE.MeshStandardMaterial({ color: 0x8a2e1a, roughness: 0.65, metalness: 0.1 }),
+  door: new THREE.MeshStandardMaterial({ color: 0x3d1a0a, roughness: 0.75 }),
+  gold: new THREE.MeshStandardMaterial({ color: 0xc9a84c, roughness: 0.4, metalness: 0.5, emissive: 0x3a2a10, emissiveIntensity: 0.2 }),
+  stone: new THREE.MeshStandardMaterial({ color: 0x6a5a3a, roughness: 0.9 }),
+  base: new THREE.MeshStandardMaterial({ color: 0x5a4a30, roughness: 0.85 }),
+  highlight: new THREE.MeshStandardMaterial({ color: 0xc94a37, roughness: 0.5, emissive: 0x6a2010, emissiveIntensity: 0.3 }),
+};
+
+const MAT_DEFAULT = {
+  wall: new THREE.MeshStandardMaterial({ color: 0x6b4a2e, roughness: 0.85, metalness: 0.05 }),
+  roof: new THREE.MeshStandardMaterial({ color: 0x2a1a0e, roughness: 0.7, metalness: 0.1 }),
+  column: new THREE.MeshStandardMaterial({ color: 0x8a2e1a, roughness: 0.65, metalness: 0.1 }),
+};
+
+// Deep clone materials for hover state
+function cloneMaterial(mat) {
+  return mat.clone();
+}
+
+// Store original materials for restore on hover-out
+function makeBuilding(data) {
+  const group = new THREE.Group();
+  group.userData = data;
+
+  const { id, name, position, size, type } = data;
+
+  // Stone base
+  const baseH = 0.5;
+  const baseGeo = new THREE.BoxGeometry(size.w + 0.6, baseH, size.d + 0.6);
+  const base = new THREE.Mesh(baseGeo, MAT.base);
+  base.position.y = baseH / 2;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  group.add(base);
+
+  // Main wall body
+  const wallH = size.h;
+  const wallGeo = new THREE.BoxGeometry(size.w, wallH, size.d);
+  const wall = new THREE.Mesh(wallGeo, MAT.wall.clone());
+  wall.position.y = baseH + wallH / 2;
+  wall.castShadow = true;
+  wall.receiveShadow = true;
+  wall.userData.highlightable = true;
+  group.add(wall);
+
+  // Door (front face)
+  const doorW = Math.min(size.w * 0.35, 1.8);
+  const doorH = Math.min(wallH * 0.6, 2);
+  const doorGeo = new THREE.BoxGeometry(doorW, doorH, 0.15);
+  const door = new THREE.Mesh(doorGeo, MAT.door);
+  door.position.set(0, baseH + doorH / 2, size.d / 2 + 0.01);
+  group.add(door);
+
+  // Door frame (vermillion)
+  const frameGeo = new THREE.BoxGeometry(doorW + 0.2, doorH + 0.15, 0.08);
+  const frame = new THREE.Mesh(frameGeo, MAT.column);
+  frame.position.set(0, baseH + doorH / 2, size.d / 2 - 0.02);
+  group.add(frame);
+
+  // Plaque above door
+  const plaqueGeo = new THREE.BoxGeometry(doorW + 0.3, 0.35, 0.08);
+  const plaque = new THREE.Mesh(plaqueGeo, MAT.gold);
+  plaque.position.set(0, baseH + doorH + 0.25, size.d / 2 + 0.02);
+  group.add(plaque);
+
+  // Columns at front corners
+  const colRadius = 0.18;
+  const colH = wallH;
+  const colPositions = [
+    [size.w/2 - 0.15, size.d/2 - 0.15],
+    [-(size.w/2 - 0.15), size.d/2 - 0.15],
+  ];
+  colPositions.forEach(([cx, cz]) => {
+    const colGeo = new THREE.CylinderGeometry(colRadius, colRadius * 1.2, colH, 12);
+    const col = new THREE.Mesh(colGeo, MAT.column);
+    col.position.set(cx, baseH + colH/2, cz);
+    col.castShadow = true;
+    group.add(col);
+  });
+
+  // Roof - Chinese style hip roof
+  buildRoof(group, size.w, size.d, baseH + wallH, type);
+
+  // Interior glow (point light for small buildings)
+  if (size.w < 8) {
+    const interiorLight = new THREE.PointLight(0xffa040, 0.3, size.w * 1.5);
+    interiorLight.position.set(0, baseH + wallH * 0.5, 0);
+    group.add(interiorLight);
+  }
+
+  group.position.set(position.x, 0, position.z);
+  group.userData.originalPos = { x: position.x, y: 0, z: position.z };
+
+  return group;
+}
+
+function buildRoof(parent, w, d, startY, type) {
+  const roofH = Math.max(0.8, Math.min(w, d) * 0.35);
+  const overhang = 0.4;
+
+  // Main roof body (pyramidal for hip roof)
+  if (type === 'hip') {
+    // Lower roof section
+    const lowerGeo = new THREE.BoxGeometry(w + overhang * 2, 0.25, d + overhang * 2);
+    const lower = new THREE.Mesh(lowerGeo, MAT.roof);
+    lower.position.y = startY + 0.12;
+    lower.castShadow = true;
+    parent.add(lower);
+
+    // Roof body
+    const roofGeo = new THREE.BoxGeometry(w + overhang, roofH, d + overhang);
+    const roof = new THREE.Mesh(roofGeo, MAT.roof);
+    roof.position.y = startY + 0.25 + roofH / 2;
+    roof.castShadow = true;
+    parent.add(roof);
+
+    // Ridge (top)
+    const ridgeGeo = new THREE.BoxGeometry(w * 0.6, 0.15, 0.3);
+    const ridge = new THREE.Mesh(ridgeGeo, MAT.roofRidge);
+    ridge.position.y = startY + 0.25 + roofH + 0.08;
+    ridge.castShadow = true;
+    parent.add(ridge);
+
+    // Ridge ornaments (Chinese style)
+    const ornGeo = new THREE.ConeGeometry(0.12, 0.35, 4);
+    const orn1 = new THREE.Mesh(ornGeo, MAT.gold);
+    orn1.position.set(w * 0.3, startY + 0.25 + roofH + 0.25, 0);
+    parent.add(orn1);
+    const orn2 = orn1.clone();
+    orn2.position.x = -w * 0.3;
+    parent.add(orn2);
+  }
+
+  // Eave corners (upturned)
+  const cornerGeo = new THREE.BoxGeometry(0.6, 0.15, 0.6);
+  const corners = [
+    [w/2 + overhang, 0, d/2 + overhang],
+    [-(w/2 + overhang), 0, d/2 + overhang],
+    [w/2 + overhang, 0, -(d/2 + overhang)],
+    [-(w/2 + overhang), 0, -(d/2 + overhang)],
+  ];
+  corners.forEach(([cx, _, cz]) => {
+    const corner = new THREE.Mesh(cornerGeo, MAT.roofRidge);
+    corner.position.set(cx, startY + 0.2, cz);
+    corner.rotation.z = cx > 0 ? 0.15 : -0.15;
+    corner.rotation.x = cz > 0 ? 0.15 : -0.15;
+    parent.add(corner);
+  });
+}
+
+function buildStatue(parent, x, z, color, scale = 1) {
+  const group = new THREE.Group();
+
+  // Pedestal
+  const pedGeo = new THREE.CylinderGeometry(0.25 * scale, 0.3 * scale, 0.3 * scale, 8);
+  const ped = new THREE.Mesh(pedGeo, MAT.stone);
+  ped.position.y = 0.15 * scale;
+  ped.castShadow = true;
+  group.add(ped);
+
+  // Body
+  const bodyGeo = new THREE.CylinderGeometry(0.15 * scale, 0.2 * scale, 0.5 * scale, 8);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, emissive: color, emissiveIntensity: 0.05 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.55 * scale;
+  body.castShadow = true;
+  group.add(body);
+
+  // Head
+  const headGeo = new THREE.SphereGeometry(0.13 * scale, 12, 12);
+  const head = new THREE.Mesh(headGeo, bodyMat);
+  head.position.y = 0.95 * scale;
+  head.castShadow = true;
+  group.add(head);
+
+  // Halo (for buddhas)
+  if (scale > 0.7) {
+    const haloGeo = new THREE.TorusGeometry(0.22 * scale, 0.025 * scale, 8, 24);
+    const halo = new THREE.Mesh(haloGeo, MAT.gold);
+    halo.position.y = 0.95 * scale;
+    halo.rotation.x = Math.PI / 2;
+    group.add(halo);
+  }
+
+  group.position.set(x, 0, z);
+  group.userData.highlightable = false;
+  parent.add(group);
+  return group;
+}
+
+function buildTemple() {
+  // ── 天王殿 (Tianwang Hall) - Front gate, first courtyard ──
+  const tianwang = makeBuilding({
+    id: 'tianwang',
+    name: '天王殿',
+    position: { x: 0, z: 14 },
+    size: { w: 7, h: 3.5, d: 4 },
+    type: 'hip'
+  });
+  templeGroup.add(tianwang);
+  buildings.push(tianwang);
+
+  // Four Heavenly Kings inside
+  buildStatue(tianwang, 1.8, -0.5, 0x4a6a8a, 0.6);
+  buildStatue(tianwang, -1.8, -0.5, 0x8a4a3a, 0.6);
+  buildStatue(tianwang, 1.8, 0.8, 0x6a8a4a, 0.6);
+  buildStatue(tianwang, -1.8, 0.8, 0x8a6a4a, 0.6);
+
+  // ── 释迦殿 (Shijia Hall) - Second building ──
+  const shijia = makeBuilding({
+    id: 'shijia',
+    name: '释迦殿',
+    position: { x: 0, z: 4 },
+    size: { w: 6, h: 3.8, d: 4 },
+    type: 'hip'
+  });
+  templeGroup.add(shijia);
+  buildings.push(shijia);
+
+  // Buddha statue
+  buildStatue(shijia, 0, -0.5, 0xc9a84c, 0.8);
+
+  // ── 大雄宝殿 (Daxiong Hall) - Main hall, third building ──
+  const daxiong = makeBuilding({
+    id: 'daxiong',
+    name: '大雄宝殿',
+    position: { x: 0, z: -7 },
+    size: { w: 9, h: 4.5, d: 5.5 },
+    type: 'hip'
+  });
+  templeGroup.add(daxiong);
+  buildings.push(daxiong);
+
+  // Three Buddhas
+  buildStatue(daxiong, -2, -1, 0xc9a84c, 0.9);
+  buildStatue(daxiong, 0, -1, 0xc9a84c, 1.0);
+  buildStatue(daxiong, 2, -1, 0xc9a84c, 0.9);
+
+  // ── 千佛殿 (Qianfo Hall) - East side ──
+  const qianfo = makeBuilding({
+    id: 'qianfo',
+    name: '千佛殿',
+    position: { x: 10, z: 0 },
+    size: { w: 6, h: 3.8, d: 5 },
+    type: 'hip'
+  });
+  templeGroup.add(qianfo);
+  buildings.push(qianfo);
+
+  // Guanyin (26 arms) statue
+  buildStatue(qianfo, 0, -1, 0xe0c068, 0.9);
+
+  // ── 菩萨殿 (Pusa Hall) - West side ──
+  const pada = makeBuilding({
+    id: 'pusa',
+    name: '菩萨殿',
+    position: { x: -10, z: 0 },
+    size: { w: 6, h: 3.8, d: 5 },
+    type: 'hip'
+  });
+  templeGroup.add(pada);
+  buildings.push(pada);
+
+  buildStatue(pada, 0, -1, 0x5a7c6a, 0.9);
+
+  // ── 罗汉殿 (Luohan Hall) - West side, back ──
+  const luohan = makeBuilding({
+    id: 'luohan',
+    name: '罗汉殿',
+    position: { x: -10, z: -10 },
+    size: { w: 5, h: 3.2, d: 4 },
+    type: 'hip'
+  });
+  templeGroup.add(luohan);
+  buildings.push(luohan);
+
+  // 18 Arhats (small)
+  for (let i = 0; i < 9; i++) {
+    const angle = (i / 9) * Math.PI;
+    const r = 1.2;
+    buildStatue(luohan, Math.cos(angle) * r, -1 + Math.sin(angle) * r, 0x8a6a4a, 0.4);
+  }
+
+  // ── 韦驮像 (Skanda Statue) - Special standalone statue near Qianfo ──
+  const weitoGroup = new THREE.Group();
+  weitoGroup.userData = { id: 'weito', name: '韦驮像' };
+
+  // Pedestal
+  const weitoPedGeo = new THREE.CylinderGeometry(0.4, 0.5, 0.4, 8);
+  const weitoPed = new THREE.Mesh(weitoPedGeo, MAT.stone);
+  weitoPed.position.y = 0.2;
+  weitoPed.castShadow = true;
+  weitoGroup.add(weitoPed);
+
+  // Base box
+  const weitoBaseGeo = new THREE.BoxGeometry(0.6, 0.2, 0.6);
+  const weitoBase = new THREE.Mesh(weitoBaseGeo, MAT.gold);
+  weitoBase.position.y = 0.5;
+  weitoGroup.add(weitoBase);
+
+  // Body (S-curve pose)
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xc9a84c, roughness: 0.4, metalness: 0.3,
+    emissive: 0x3a2a10, emissiveIntensity: 0.15
+  });
+
+  // Torso
+  const torsoGeo = new THREE.CapsuleGeometry(0.22, 0.6, 8, 16);
+  const torso = new THREE.Mesh(torsoGeo, bodyMat);
+  torso.position.y = 1.1;
+  torso.rotation.z = 0.12;
+  torso.castShadow = true;
+  torso.userData.highlightable = true;
+  weitoGroup.add(torso);
+
+  // Armor chest plate
+  const armorGeo = new THREE.BoxGeometry(0.42, 0.4, 0.28);
+  const armor = new THREE.Mesh(armorGeo, MAT.highlight);
+  armor.position.y = 1.15;
+  armor.rotation.z = 0.12;
+  armor.castShadow = true;
+  weitoGroup.add(armor);
+
+  // Head
+  const headGeo = new THREE.SphereGeometry(0.16, 16, 16);
+  const head = new THREE.Mesh(headGeo, bodyMat);
+  head.position.set(0.06, 1.6, 0);
+  head.castShadow = true;
+  weitoGroup.add(head);
+
+  // Helmet
+  const helmetGeo = new THREE.ConeGeometry(0.18, 0.2, 8);
+  const helmet = new THREE.Mesh(helmetGeo, MAT.gold);
+  helmet.position.set(0.06, 1.78, 0);
+  weitoGroup.add(helmet);
+
+  // Right arm (holding vajra, pointing down)
+  const rArmGeo = new THREE.CapsuleGeometry(0.06, 0.35, 4, 8);
+  const rArm = new THREE.Mesh(rArmGeo, bodyMat);
+  rArm.position.set(0.25, 1.1, 0.15);
+  rArm.rotation.x = 0.5;
+  rArm.rotation.z = -0.3;
+  weitoGroup.add(rArm);
+
+  // Vajra (staff)
+  const vajraGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6);
+  const vajra = new THREE.Mesh(vajraGeo, MAT.gold);
+  vajra.position.set(0.32, 0.8, 0.35);
+  vajra.rotation.x = 0.3;
+  weitoGroup.add(vajra);
+
+  // Left arm (akimbo/hand on hip)
+  const lArmGeo = new THREE.CapsuleGeometry(0.06, 0.3, 4, 8);
+  const lArm = new THREE.Mesh(lArmGeo, bodyMat);
+  lArm.position.set(-0.2, 1.15, 0.1);
+  lArm.rotation.z = 0.6;
+  weitoGroup.add(lArm);
+
+  // Legs
+  const legGeo = new THREE.CapsuleGeometry(0.08, 0.4, 4, 8);
+  const rLeg = new THREE.Mesh(legGeo, bodyMat);
+  rLeg.position.set(0.1, 0.65, 0.15);
+  rLeg.rotation.z = -0.15;
+  rLeg.castShadow = true;
+  weitoGroup.add(rLeg);
+
+  const lLeg = new THREE.Mesh(legGeo, bodyMat);
+  lLeg.position.set(-0.08, 0.65, -0.05);
+  lLeg.rotation.z = 0.1;
+  lLeg.castShadow = true;
+  weitoGroup.add(lLeg);
+
+  // Halo/aura
+  const auraGeo = new THREE.TorusGeometry(0.35, 0.02, 8, 32);
+  const aura = new THREE.Mesh(auraGeo, MAT.gold);
+  aura.position.set(0.06, 1.6, -0.15);
+  weitoGroup.add(aura);
+
+  // Point light for dramatic effect
+  const weitoLight = new THREE.PointLight(0xffa040, 0.5, 5);
+  weitoLight.position.set(0, 1.5, 1);
+  weitoGroup.add(weitoLight);
+
+  weitoGroup.position.set(10, 0, 5);
+  weitoGroup.userData.originalPos = { x: 10, y: 0, z: 5 };
+  templeGroup.add(weitoGroup);
+  buildings.push(weitoGroup);
+
+  // Store original materials for all meshes
+  buildings.forEach(b => {
+    b.traverse(child => {
+      if (child.isMesh && child.userData.highlightable) {
+        child.userData.originalMaterial = child.material.clone();
+      }
+    });
+  });
+
+  // Courtyard incense burner (decorative)
+  const burnerGroup = new THREE.Group();
+  const burnerBase = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.3, 8), MAT.stone);
+  burnerBase.position.y = 0.15;
+  burnerBase.castShadow = true;
+  burnerGroup.add(burnerBase);
+
+  const burnerBody = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.3, 0.4, 8), MAT.gold);
+  burnerBody.position.y = 0.5;
+  burnerGroup.add(burnerBody);
+
+  const burnerLid = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.2, 8), MAT.highlight);
+  burnerLid.position.y = 0.8;
+  burnerGroup.add(burnerLid);
+
+  burnerGroup.position.set(0, 0, 8);
+  scene.add(burnerGroup);
+
+  // Smoke particles from incense
+  const smokeGeo = new THREE.SphereGeometry(0.08, 6, 6);
+  const smokeMat = new THREE.MeshBasicMaterial({ color: 0xddccaa, transparent: true, opacity: 0.15 });
+  for (let i = 0; i < 8; i++) {
+    const smoke = new THREE.Mesh(smokeGeo, smokeMat.clone());
+    smoke.position.set(
+      (Math.random() - 0.5) * 0.3,
+      1 + i * 0.3,
+      8 + (Math.random() - 0.5) * 0.3
+    );
+    smoke.userData = { smoke: true, speed: 0.005 + Math.random() * 0.01, offset: i * 0.4 };
+    scene.add(smoke);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   ATMOSPHERE PARTICLES
+   ═══════════════════════════════════════════ */
+let particles;
+
+function buildParticles() {
+  const count = 200;
+  const positions = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 60;
+    positions[i * 3 + 1] = Math.random() * 25 + 2;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
+    sizes[i] = Math.random() * 0.08 + 0.02;
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+  const mat = new THREE.PointsMaterial({
+    color: 0xc9a84c,
+    size: 0.06,
+    transparent: true,
+    opacity: 0.4,
+    sizeAttenuation: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+
+  particles = new THREE.Points(geo, mat);
+  scene.add(particles);
+}
+
+/* ═══════════════════════════════════════════
+   INTERACTION
+   ═══════════════════════════════════════════ */
+function onPointerMove(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(buildings, true);
+
+  // Find the first highlightable building
+  let foundBuilding = null;
+  for (const hit of intersects) {
+    let obj = hit.object;
+    while (obj && !obj.userData.id) {
+      obj = obj.parent;
+    }
+    if (obj && obj.userData.id) {
+      foundBuilding = obj;
+      break;
+    }
+  }
+
+  const tooltip = document.getElementById('tooltip');
+
+  if (foundBuilding && foundBuilding !== hoveredObj) {
+    // Restore previous
+    if (hoveredObj) restoreMaterial(hoveredObj);
+
+    hoveredObj = foundBuilding;
+    highlightBuilding(hoveredObj);
+
+    // Show tooltip
+    const info = TEMPLE_INFO[hoveredObj.userData.id];
+    if (info) {
+      tooltip.textContent = info.name;
+      tooltip.style.left = event.clientX + 'px';
+      tooltip.style.top = (event.clientY - 35) + 'px';
+      tooltip.classList.add('visible');
+    }
+    document.body.style.cursor = 'pointer';
+  } else if (!foundBuilding) {
+    if (hoveredObj) {
+      restoreMaterial(hoveredObj);
+      hoveredObj = null;
+    }
+    tooltip.classList.remove('visible');
+    document.body.style.cursor = 'default';
+  } else if (foundBuilding === hoveredObj) {
+    // Update tooltip position
+    tooltip.style.left = event.clientX + 'px';
+    tooltip.style.top = (event.clientY - 35) + 'px';
+  }
+}
+
+function highlightBuilding(group) {
+  group.traverse(child => {
+    if (child.isMesh && child.userData.highlightable && child.userData.originalMaterial) {
+      child.material = child.userData.originalMaterial.clone();
+      child.material.emissive = new THREE.Color(0xc9a84c);
+      child.material.emissiveIntensity = 0.3;
+    }
+  });
+}
+
+function restoreMaterial(group) {
+  if (group === selectedObj) return; // Don't restore if selected
+  group.traverse(child => {
+    if (child.isMesh && child.userData.highlightable && child.userData.originalMaterial) {
+      child.material = child.userData.originalMaterial.clone();
+    }
+  });
+}
+
+function onClick(event) {
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(buildings, true);
+
+  let foundBuilding = null;
+  for (const hit of intersects) {
+    let obj = hit.object;
+    while (obj && !obj.userData.id) {
+      obj = obj.parent;
+    }
+    if (obj && obj.userData.id) {
+      foundBuilding = obj;
+      break;
+    }
+  }
+
+  if (foundBuilding) {
+    selectBuilding(foundBuilding);
+  }
+}
+
+function selectBuilding(group) {
+  // Restore previous selection
+  if (selectedObj && selectedObj !== hoveredObj) {
+    restoreMaterial(selectedObj);
+  }
+  selectedObj = group;
+
+  // Highlight selected
+  highlightBuilding(group);
+
+  // Show info panel
+  const info = TEMPLE_INFO[group.userData.id];
+  if (info) {
+    showInfoPanel(info);
+  }
+
+  // Focus camera on building
+  const targetPos = new THREE.Vector3();
+  group.getWorldPosition(targetPos);
+  animateCameraTo(targetPos.x, targetPos.y + 3, targetPos.z + 12, targetPos.x, targetPos.y + 1, targetPos.z);
+
+  // Update layer selector
+  updateLayerSelector(group.userData.id);
+}
+
+function showInfoPanel(info) {
+  const panel = document.getElementById('info-panel');
+  const content = document.getElementById('panel-content');
+
+  let html = `
+    <div class="panel-seal">${info.seal}</div>
+    <div class="panel-title">${info.name}</div>
+    <div class="panel-subtitle">${info.subtitle}</div>
+    <div class="panel-divider"></div>
+    <div class="panel-section">
+      <div class="panel-section-title">概述</div>
+      <div class="panel-text">${info.desc}</div>
+    </div>
+    <div class="panel-highlight">
+      <div class="panel-highlight-text">${info.highlight}</div>
+    </div>
+  `;
+
+  info.sections.forEach(s => {
+    html += `
+      <div class="panel-section">
+        <div class="panel-section-title">${s.title}</div>
+        <div class="panel-text">${s.text}</div>
+      </div>
+    `;
+  });
+
+  html += `<div class="panel-tags">`;
+  info.tags.forEach(t => {
+    html += `<span class="panel-tag">${t}</span>`;
+  });
+  html += `</div>`;
+
+  content.innerHTML = html;
+  panel.classList.add('open');
+}
+
+function closeInfoPanel() {
+  document.getElementById('info-panel').classList.remove('open');
+  if (selectedObj) {
+    restoreMaterial(selectedObj);
+    selectedObj = null;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   CAMERA ANIMATION
+   ═══════════════════════════════════════════ */
+let camAnim = null;
+
+function animateCameraTo(px, py, pz, tx, ty, tz) {
+  camAnim = {
+    startPos: camera.position.clone(),
+    endPos: new THREE.Vector3(px, py, pz),
+    startTarget: controls.target.clone(),
+    endTarget: new THREE.Vector3(tx, ty, tz),
+    progress: 0,
+    duration: 1000
+  };
+}
+
+function updateCameraAnim(dt) {
+  if (!camAnim) return;
+  camAnim.progress += dt / camAnim.duration;
+  if (camAnim.progress >= 1) {
+    camAnim.progress = 1;
+  }
+  const t = easeInOutCubic(camAnim.progress);
+  camera.position.lerpVectors(camAnim.startPos, camAnim.endPos, t);
+  controls.target.lerpVectors(camAnim.startTarget, camAnim.endTarget, t);
+  if (camAnim.progress >= 1) {
+    camAnim = null;
+  }
+}
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/* ═══════════════════════════════════════════
+   EXPLODE VIEW
+   ═══════════════════════════════════════════ */
+function toggleExplode() {
+  exploded = !exploded;
+  buildings.forEach(b => {
+    const orig = b.userData.originalPos;
+    const dir = new THREE.Vector3(orig.x, 0, orig.z).normalize();
+    const offset = exploded ? 6 : 0;
+
+    // Animate
+    const startPos = b.position.clone();
+    const endPos = new THREE.Vector3(
+      orig.x + dir.x * offset,
+      orig.y + (exploded ? 2 : 0),
+      orig.z + dir.z * offset
+    );
+
+    let progress = 0;
+    const animate = () => {
+      progress += 0.04;
+      if (progress > 1) progress = 1;
+      const t = easeInOutCubic(progress);
+      b.position.lerpVectors(startPos, endPos, t);
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+    animate();
+  });
+
+  // Special: move weito statue up more
+  const weito = buildings.find(b => b.userData.id === 'weito');
+  if (weito) {
+    const orig = weito.userData.originalPos;
+    const startPos = weito.position.clone();
+    const endPos = new THREE.Vector3(orig.x, exploded ? 4 : 0, orig.z + (exploded ? 3 : 0));
+    let progress = 0;
+    const animate = () => {
+      progress += 0.04;
+      if (progress > 1) progress = 1;
+      const t = easeInOutCubic(progress);
+      weito.position.lerpVectors(startPos, endPos, t);
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+    window.THREE = THREE;
+window.scene = scene;
+window.camera = camera;
+window.renderer = renderer;
+animate();
+
+  }
+}
+
+/* ═══════════════════════════════════════════
+   LAYER SELECTOR
+   ═══════════════════════════════════════════ */
+function buildLayerSelector() {
+  const container = document.getElementById('layer-selector');
+  LAYERS.forEach(layer => {
+    const btn = document.createElement('button');
+    btn.className = 'layer-btn';
+    btn.textContent = layer.label;
+    btn.dataset.id = layer.id;
+    btn.addEventListener('click', () => {
+      if (layer.id === 'all') {
+        resetView();
+      } else {
+        const building = buildings.find(b => b.userData.id === layer.target);
+        if (building) selectBuilding(building);
+      }
+    });
+    container.appendChild(btn);
+  });
+}
+
+function updateLayerSelector(activeId) {
+  document.querySelectorAll('.layer-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.id === activeId);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   CONTROLS
+   ═══════════════════════════════════════════ */
+function resetView() {
+  animateCameraTo(35, 28, 35, 0, 3, 0);
+  closeInfoPanel();
+  updateLayerSelector('all');
+  if (hoveredObj) {
+    restoreMaterial(hoveredObj);
+    hoveredObj = null;
+  }
+  document.getElementById('tooltip').classList.remove('visible');
+}
+
+function toggleAutoRotate() {
+  autoRotate = !autoRotate;
+  controls.autoRotate = autoRotate;
+  controls.autoRotateSpeed = 0.8;
+  document.getElementById('btn-rotate').classList.toggle('active', autoRotate);
+}
+
+/* ═══════════════════════════════════════════
+   LOADER
+   ═══════════════════════════════════════════ */
+function animateLoader() {
+  const bar = document.getElementById('loader-bar');
+  let progress = 0;
+
+  const interval = setInterval(() => {
+    progress += Math.random() * 15 + 5;
+    if (progress > 100) progress = 100;
+    bar.style.width = progress + '%';
+
+    if (progress >= 100) {
+      clearInterval(interval);
+      setTimeout(() => {
+        document.getElementById('loader').classList.add('hidden');
+      }, 400);
+    }
+  }, 120);
+}
+
+/* ═══════════════════════════════════════════
+   RESIZE
+   ═══════════════════════════════════════════ */
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATION LOOP
+   ═══════════════════════════════════════════ */
+let lastTime = performance.now();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const now = performance.now();
+  const dt = now - lastTime;
+  lastTime = now;
+
+  // Camera animation
+  updateCameraAnim(dt);
+
+  // Controls
+  controls.update();
+
+  // Compass
+  updateCompass();
+
+  // Particles drift
+  if (particles) {
+    const pos = particles.geometry.attributes.position;
+    const arr = pos.array;
+    for (let i = 0; i < arr.length; i += 3) {
+      arr[i + 1] += 0.008;
+      arr[i] += Math.sin(now * 0.0005 + i) * 0.002;
+      if (arr[i + 1] > 27) {
+        arr[i + 1] = 2;
+        arr[i] = (Math.random() - 0.5) * 60;
+        arr[i + 2] = (Math.random() - 0.5) * 60;
+      }
+    }
+    pos.needsUpdate = true;
+  }
+
+  // Smoke from incense
+  scene.children.forEach(child => {
+    if (child.userData.smoke) {
+      child.position.y += child.userData.speed;
+      child.material.opacity = Math.max(0, 0.15 - (child.position.y - 1) * 0.005);
+      if (child.position.y > 4) {
+        child.position.y = 1;
+        child.position.x = (Math.random() - 0.5) * 0.3 + 0;
+        child.position.z = 8 + (Math.random() - 0.5) * 0.3;
+        child.material.opacity = 0.15;
+      }
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+
+function updateCompass() {
+  const angle = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
+  const needle = document.getElementById('compass-needle');
+  needle.style.transform = `rotate(${angle}rad)`;
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════ */
+// Event listeners
+document.getElementById('btn-rotate').addEventListener('click', toggleAutoRotate);
+document.getElementById('btn-explode').addEventListener('click', () => {
+  document.getElementById('btn-explode').classList.toggle('active');
+  toggleExplode();
+});
+document.getElementById('btn-reset').addEventListener('click', resetView);
+document.getElementById('panel-close').addEventListener('click', closeInfoPanel);
+
+buildLayerSelector();
+init();
+</script>
+<script src="theme.js"></script>
+</body>
+</html>

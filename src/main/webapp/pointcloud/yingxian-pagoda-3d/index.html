@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>应县木塔 · 三维交互模型</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231a1410'/%3E<path d='M32 10 L50 22 L50 40 L32 54 L14 40 L14 22 Z' fill='%23c9a84c'/%3E<path d='M22 24 L42 24 M22 30 L42 30 M22 36 L42 36' stroke='%231a1410' stroke-width='2.5'/%3E%3C/svg%3E">
+<style>
+:root {
+  --ink-deep: #1a1410;
+  --ink-dark: #2d231a;
+  --ink-mid: #3d3328;
+  --wood-light: #c4a06a;
+  --wood-mid: #9a7848;
+  --wood-dark: #6b4e2e;
+  --wood-deep: #4a3520;
+  --gold: #d4a84b;
+  --gold-bright: #e8c878;
+  --red-seal: #b8362e;
+  --paper: #f5ecd9;
+  --paper-dim: #e8dcc4;
+  --text-light: #e8dcc4;
+  --text-dim: #b0a088;
+  --text-mute: #7a6e5a;
+  --bg-overlay: rgba(26, 20, 16, 0.92);
+  --border-soft: rgba(196, 160, 106, 0.25);
+  --border-mid: rgba(196, 160, 106, 0.45);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--ink-deep);
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  color: var(--text-light);
+}
+
+#scene-container {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: radial-gradient(ellipse at 50% 70%, #3d3328 0%, #1a1410 60%, #0d0a07 100%);
+}
+
+#scene-container::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(212, 168, 75, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(184, 54, 46, 0.04) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+canvas { display: block; }
+
+/* ===== Loading ===== */
+#loader {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--ink-deep);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.8s ease;
+}
+
+#loader.hidden { opacity: 0; pointer-events: none; }
+
+.loader-title {
+  font-family: 'Ma Shan Zheng', serif;
+  font-size: 2.4rem;
+  color: var(--gold-bright);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 20px rgba(212, 168, 75, 0.3);
+}
+
+.loader-sub {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.85rem;
+  color: var(--text-mute);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+}
+
+.loader-bar {
+  width: 200px;
+  height: 2px;
+  background: rgba(196, 160, 106, 0.15);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.loader-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--wood-dark), var(--gold), var(--gold-bright));
+  width: 0%;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(212, 168, 75, 0.5);
+}
+
+/* ===== Top Bar ===== */
+#top-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: 1.2rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 10;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(26, 20, 16, 0.6) 0%, transparent 100%);
+}
+
+.top-left {
+  pointer-events: auto;
+}
+
+.top-title {
+  font-family: 'Ma Shan Zheng', serif;
+  font-size: 1.6rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+
+.top-sub {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.72rem;
+  color: var(--text-mute);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  margin-top: 0.3rem;
+}
+
+.top-right {
+  pointer-events: auto;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.ctrl-btn {
+  background: rgba(45, 35, 26, 0.7);
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  padding: 0.5rem 1rem;
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  letter-spacing: 0.05em;
+}
+
+.ctrl-btn:hover {
+  background: rgba(74, 53, 32, 0.8);
+  border-color: var(--border-mid);
+  color: var(--gold-bright);
+}
+
+.ctrl-btn.active {
+  background: rgba(107, 78, 46, 0.6);
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+/* ===== Info Panel ===== */
+#info-panel {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translate(100%, -50%);
+  width: 420px;
+  max-height: 75vh;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(16px);
+  border-left: 1px solid var(--border-mid);
+  border-top: 1px solid var(--border-mid);
+  border-bottom: 1px solid var(--border-mid);
+  border-radius: 4px 0 0 4px;
+  padding: 2rem 2.2rem;
+  overflow-y: auto;
+  z-index: 20;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: -10px 0 40px rgba(0,0,0,0.4);
+}
+
+#info-panel.open {
+  transform: translate(0, -50%);
+}
+
+#info-panel::-webkit-scrollbar { width: 4px; }
+#info-panel::-webkit-scrollbar-track { background: transparent; }
+#info-panel::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+
+.panel-close {
+  position: absolute;
+  top: 1rem; right: 1.2rem;
+  width: 28px; height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-mute);
+  font-size: 1.2rem;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+}
+
+.panel-close:hover { color: var(--gold-bright); }
+
+.panel-tag {
+  display: inline-block;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.6rem;
+}
+
+.panel-title {
+  font-family: 'Ma Shan Zheng', serif;
+  font-size: 1.8rem;
+  color: var(--gold-bright);
+  margin-bottom: 0.3rem;
+  line-height: 1.2;
+}
+
+.panel-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-mute);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.05em;
+}
+
+.panel-divider {
+  height: 1px;
+  background: linear-gradient(to right, var(--border-mid), transparent);
+  margin: 1.2rem 0;
+}
+
+.panel-section {
+  margin-bottom: 1.2rem;
+}
+
+.panel-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--wood-light);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.panel-section-title::before {
+  content: '';
+  width: 3px; height: 12px;
+  background: var(--gold);
+  border-radius: 1px;
+}
+
+.panel-text {
+  font-size: 0.88rem;
+  line-height: 1.85;
+  color: var(--text-dim);
+  text-align: justify;
+}
+
+.panel-data {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1rem;
+  margin-top: 0.6rem;
+}
+
+.data-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.data-label {
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  letter-spacing: 0.05em;
+}
+
+.data-value {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 1.05rem;
+  color: var(--gold-bright);
+  font-weight: 500;
+}
+
+/* ===== Bottom Bar ===== */
+#bottom-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  padding: 1rem 2rem 1.5rem;
+  z-index: 10;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(26, 20, 16, 0.7) 0%, transparent 100%);
+}
+
+.layer-selector {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  pointer-events: auto;
+  flex-wrap: wrap;
+}
+
+.layer-chip {
+  background: rgba(45, 35, 26, 0.7);
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  padding: 0.45rem 1rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  white-space: nowrap;
+}
+
+.layer-chip:hover {
+  background: rgba(74, 53, 32, 0.8);
+  color: var(--gold-bright);
+  border-color: var(--border-mid);
+}
+
+.layer-chip.active {
+  background: rgba(107, 78, 46, 0.5);
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+.hint-text {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  margin-top: 0.8rem;
+  letter-spacing: 0.1em;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  text-transform: uppercase;
+}
+
+/* ===== Tooltip ===== */
+#tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(26, 20, 16, 0.92);
+  border: 1px solid var(--border-mid);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.78rem;
+  color: var(--gold-bright);
+  border-radius: 2px;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+#tooltip.visible { opacity: 1; }
+
+/* ===== Exploded Toggle ===== */
+.explode-status {
+  position: fixed;
+  bottom: 5rem;
+  left: 2rem;
+  z-index: 10;
+  font-size: 0.72rem;
+  color: var(--text-mute);
+  letter-spacing: 0.1em;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.explode-status.visible { opacity: 1; }
+
+/* ===== Corner Decoration ===== */
+.corner-deco {
+  position: fixed;
+  width: 60px; height: 60px;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.3;
+}
+
+.corner-deco.tl { top: 0; left: 0; border-top: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+.corner-deco.tr { top: 0; right: 0; border-top: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+.corner-deco.bl { bottom: 0; left: 0; border-bottom: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+.corner-deco.br { bottom: 0; right: 0; border-bottom: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+
+@media (max-width: 768px) {
+  #info-panel { width: 90%; }
+  .top-title { font-size: 1.2rem; }
+  .layer-chip { font-size: 0.7rem; padding: 0.35rem 0.7rem; }
+}
+</style>
+</head>
+<body>
+
+<div id="scene-container"></div>
+
+<div class="corner-deco tl"></div>
+<div class="corner-deco tr"></div>
+<div class="corner-deco bl"></div>
+<div class="corner-deco br"></div>
+
+<!-- Loading -->
+<div id="loader">
+  <div class="loader-title">应县木塔</div>
+  <div class="loader-sub">Sakyamuni Pagoda · 1056 AD</div>
+  <div class="loader-bar"><div class="loader-bar-fill" id="loader-fill"></div></div>
+</div>
+
+<!-- Top Bar -->
+<div id="top-bar">
+  <div class="top-left">
+    <div class="top-title">应县木塔</div>
+    <div class="top-sub">Fogong Temple · Sakyamuni Pagoda</div>
+  </div>
+  <div class="top-right">
+    <button class="ctrl-btn" id="btn-explode">拆解视图</button>
+    <button class="ctrl-btn" id="btn-reset">重置视角</button>
+    <button class="ctrl-btn" id="btn-auto">自动旋转</button>
+  </div>
+</div>
+
+<!-- Info Panel -->
+<div id="info-panel">
+  <button class="panel-close" id="panel-close">✕</button>
+  <div id="panel-content"></div>
+</div>
+
+<!-- Bottom Bar -->
+<div id="bottom-bar">
+  <div class="layer-selector" id="layer-selector"></div>
+  <div class="hint-text">点击塔身各部分查看详情 · 拖拽旋转 · 滚轮缩放</div>
+</div>
+
+<div class="explode-status" id="explode-status">EXPLODED VIEW: ON</div>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../three-lib/three/three.module.js",
+    "three/addons/": "../three-lib/three/addons/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ===== Data =====
+const PAGODA_DATA = {
+  meta: {
+    name: '应县木塔',
+    fullName: '佛宫寺释迦塔',
+    englishName: 'Sakyamuni Pagoda of Fogong Temple',
+    builtYear: '辽清宁二年 (1056年)',
+    height: '67.31米',
+    baseDiameter: '30.27米',
+    totalWeight: '约7400吨',
+    woodVolume: '上万立方米',
+    woodType: '华北落叶松 (主体) · 榆木 (斗拱)',
+    structure: '纯木榫卯结构 · 无一根铁钉',
+    dougongTypes: '59种 · 成百上千朵',
+    worldRecord: '世界最高木塔 (吉尼斯认证 2016)',
+    status: '全国重点文物保护单位 (1961年首批)',
+  },
+
+  parts: [
+    {
+      id: 'base',
+      name: '塔基',
+      subtitle: 'Stone Platform Base',
+      tag: 'FOUNDATION',
+      color: 0x8a7a6a,
+      description: '木塔建造在4米高的石砌台基之上，塔基分为上下两层。下层为正方形，象征大地的稳固；上层为八角形，过渡到塔身的八角平面。台基用砖石垒筑，四周原有辽代风格石狮雕刻。塔基不仅承载着7400多吨的塔身重量，还起到防潮隔湿的作用，保护上部木结构免受地面水分侵蚀。',
+      data: [
+        { label: '高度', value: '4米' },
+        { label: '下层形状', value: '正方形' },
+        { label: '上层形状', value: '八角形' },
+        { label: '材质', value: '砖石' },
+      ],
+      facts: [
+        '塔基的设计兼顾稳定性与美学，比例敦厚而高峻',
+        '下层方形代表地，上层八角过渡至塔身圆形中空结构',
+        '基座中部略高，利于塔身通风和排水',
+      ],
+    },
+    {
+      id: 'layer1',
+      name: '一层 · 释迦牟尼佛殿',
+      subtitle: 'First Story · Shakyamuni Hall',
+      tag: 'GROUND LEVEL',
+      color: 0x9a7848,
+      description: '木塔第一层是最大的明层，设有重檐并有回廊一周，古建筑称之为"副阶周匝"。内槽供奉一尊高达11米的释迦牟尼佛泥塑贴金像，是迄今发现的我国最高大的室内泥塑。佛陀面庞圆阔，慈悲安详，左手施与愿印，右手作说法印，眉如新月，胡须卷翘，双耳丰润，耳环垂肩，为典型辽代造像风格。',
+      data: [
+        { label: '层高', value: '约12.5米' },
+        { label: '外柱数', value: '24根' },
+        { label: '内柱数', value: '8根' },
+        { label: '佛像高', value: '11米' },
+      ],
+      facts: [
+        '内槽墙壁画有六幅如来佛像，门洞两侧绘金刚、天王、弟子',
+        '佛陀座下为莲花座与金刚须弥座相叠的复合座',
+        '座下塑八大力士，头戴盔身披甲，造型生动形态各异',
+        '顶部有精美华丽的藻井和八角形图案',
+        '底层壁画为辽代壁画珍品，色泽鲜艳人物栩栩如生',
+      ],
+    },
+    {
+      id: 'layer2',
+      name: '二层 · 华严三圣殿',
+      subtitle: 'Second Story · Huayan Trinity',
+      tag: 'SECOND LEVEL',
+      color: 0x9a7848,
+      description: '第二层坛座为方形，上塑一佛二菩萨和二胁侍，均坐北朝南。释迦牟尼佛居中，东侧为普贤菩萨，西侧为文殊菩萨，后边各立二胁侍菩萨。普贤、文殊盘膝而坐，神态自然；胁侍菩萨谦恭侍立。此层体现华严宗的佛理思想，以毗卢遮那佛为中心的华严三圣造像。',
+      data: [
+        { label: '坛座形状', value: '方形' },
+        { label: '塑像数', value: '5尊' },
+        { label: '主尊', value: '释迦牟尼佛' },
+        { label: '菩萨', value: '文殊·普贤' },
+      ],
+      facts: [
+        '普贤菩萨座下有狮子，文殊菩萨座下有象',
+        '胁侍菩萨谦恭侍立，神态恭敬',
+        '此层造像体现华严宗三圣圆融思想',
+      ],
+    },
+    {
+      id: 'layer3',
+      name: '三层 · 四方佛殿',
+      subtitle: 'Third Story · Four Directional Buddhas',
+      tag: 'THIRD LEVEL',
+      color: 0x8a6838,
+      description: '第三层坛座为八角形，上塑四方佛。四方佛即东方阿閦佛、西方阿弥陀佛、南方宝生佛、北方成就佛（不空成就佛）。四佛面目端庄肃穆，各据一方，仔细端详神态各异。须弥座下有马、象、金翅鸟、孔雀，分别代表宝生佛、阿閦佛、不空成就佛和阿弥陀佛的坐骑。',
+      data: [
+        { label: '坛座形状', value: '八角形' },
+        { label: '塑像数', value: '4尊' },
+        { label: '主尊', value: '四方佛' },
+        { label: '代表方位', value: '东南西北' },
+      ],
+      facts: [
+        '东方阿閦佛 — 坐骑为象，代表大圆镜智',
+        '南方宝生佛 — 坐骑为马，代表平等性智',
+        '西方阿弥陀佛 — 坐骑为孔雀，代表妙观察智',
+        '北方不空成就佛 — 坐骑为金翅鸟，代表成所作智',
+        '门楣悬金代王瓛所题"释迦塔"匾额，距今800余年',
+      ],
+    },
+    {
+      id: 'layer4',
+      name: '四层 · 释迦说法殿',
+      subtitle: 'Fourth Story · Shakyamuni Teaching',
+      tag: 'FOURTH LEVEL',
+      color: 0x8a6838,
+      description: '第四层塑释迦牟尼佛，二弟子（阿难、迦叶），文殊和普贤菩萨。释迦牟尼佛端坐中央，两侧为弟子阿难和迦叶尊者，文殊普贤分列两侧。此层造像组合体现说法场景，佛陀为众生宣说妙法。20世纪30年代梁思成考察时，坛上尚有四菩萨像，后遗失。',
+      data: [
+        { label: '塑像数', value: '7尊' },
+        { label: '主尊', value: '释迦牟尼佛' },
+        { label: '弟子', value: '阿难·迦叶' },
+        { label: '菩萨', value: '文殊·普贤' },
+      ],
+      facts: [
+        '阿难尊者以多闻第一著称，迦叶尊者以头陀第一闻名',
+        '此层体现佛陀说法度生的场景',
+        '梁思成1933年考察时记录了详细的造像资料',
+      ],
+    },
+    {
+      id: 'layer5',
+      name: '五层 · 毗卢遮那佛殿',
+      subtitle: 'Fifth Story · Vairocana Hall',
+      tag: 'TOP LEVEL',
+      color: 0x7a5828,
+      description: '第五层是最高明层，塑毗卢遮那如来佛和八大菩萨。毗卢遮那佛又称大日如来，是密宗最高尊神，代表法身佛。八大菩萨环绕主尊，构成密宗曼荼罗格局。此层是木塔宗教意义的最高层面，从底层释迦牟尼佛到顶层毗卢遮那佛，体现了从应身到法身的修行次第。',
+      data: [
+        { label: '塑像数', value: '9尊' },
+        { label: '主尊', value: '毗卢遮那佛' },
+        { label: '菩萨数', value: '8尊' },
+        { label: '宗教意义', value: '密宗曼荼罗' },
+      ],
+      facts: [
+        '毗卢遮那佛即大日如来，代表法身佛',
+        '八大菩萨构成完整的曼荼罗格局',
+        '从一层到五层体现显密圆融的修行次第',
+        '五层共保存26尊辽代彩塑，弥足珍贵',
+      ],
+    },
+    {
+      id: 'roof',
+      name: '塔顶屋檐',
+      subtitle: 'Eaves & Roof Structure',
+      tag: 'ROOF',
+      color: 0x5a4020,
+      description: '木塔外观五层六檐，第一层为重檐（双重屋檐），其余各层为单檐，共六层屋檐。各层屋檐基本平直，角翘平缓，每层檐下装有风铃，微风吹动叮咚作响。屋檐采用八角攒尖式逐渐收分，上层柱脚插在下层柱头的枋上并向内递收，形成一层比一层小的优美轮廓。屋檐与平座交替叠合，区隔分明节奏感强。',
+      data: [
+        { label: '屋檐数', value: '6层 (含重檐)' },
+        { label: '檐下装饰', value: '风铃' },
+        { label: '屋顶形式', value: '八角攒尖式' },
+        { label: '角翘', value: '平缓' },
+      ],
+      facts: [
+        '每层檐下装有风铃，微风吹动叮咚作响',
+        '屋檐平直角翘平缓，体现辽代建筑风格',
+        '各层塔檐与平座交替，节奏感强轮廓优美',
+        '屋檐出挑深远，保护塔身木构免受雨水侵蚀',
+      ],
+    },
+    {
+      id: 'dougong',
+      name: '斗拱结构',
+      subtitle: 'Dougong Bracket System',
+      tag: 'DOUGONG',
+      color: 0x6b5238,
+      description: '斗拱是中国古代木结构建筑的核心构件，兼具承重与装饰功能。应县木塔全塔共有59种不同形式的斗拱，成百上千朵，种类之多国内罕见，被誉为"斗拱博物馆"。斗拱将梁、枋、柱连接成整体，每个斗拱如同小型倒金字塔，将梁架重量和屋顶荷载承载于肩部。专家测算，上层九层重量达一千多吨，平均每根柱子一组斗拱承受6吨载荷。斗拱使木材之间产生位移和摩擦，吸收地震能量，是木塔千年抗震的关键。',
+      data: [
+        { label: '斗拱种类', value: '59种' },
+        { label: '斗拱数量', value: '成百上千朵' },
+        { label: '单组承重', value: '约6吨' },
+        { label: '美誉', value: '斗拱博物馆' },
+      ],
+      facts: [
+        '斗拱既是承重构件又是装饰艺术，一物两用',
+        '54-59种不同形式施于不同位置，功用各异',
+        '斗拱的柔性连接吸收地震能量，实现隔震效果',
+        '古籍誉木塔"远看擎天柱，近似百尺莲"',
+        '斗拱结构是中国古建筑智慧的集中体现',
+      ],
+    },
+    {
+      id: 'steeple',
+      name: '塔刹',
+      subtitle: 'Pinnacle Spire',
+      tag: 'STEEPLE',
+      color: 0xc0a060,
+      description: '塔刹位于塔顶正中，是木塔的最高点，由基座、仰莲、相轮、圆光、仰月、宝盖、宝珠七部分组成，全部用生铁铸造。塔刹高约10米，制作精美，与塔身协调一体，使木塔更加宏伟壮观。塔刹不仅是建筑装饰，更具有宗教象征意义——相轮代表佛法的层次，宝珠代表佛法的圆满。塔刹也是木塔避雷的重要结构，铁刹通过暗线与塔基连接，起到引雷入地的作用。',
+      data: [
+        { label: '高度', value: '约10米' },
+        { label: '材质', value: '生铁铸造' },
+        { label: '组成', value: '7部分' },
+        { label: '功能', value: '装饰·避雷' },
+      ],
+      facts: [
+        '基座 — 须弥座形式，稳固承托上部',
+        '仰莲 — 莲花瓣装饰，象征清净',
+        '相轮 — 层层递收，代表佛法层次',
+        '圆光 — 圆形光环，象征佛光普照',
+        '仰月 — 弯月形装饰，承上启下',
+        '宝盖 — 华盖悬垂，庄严威仪',
+        '宝珠 — 最高点，象征佛法圆满',
+      ],
+    },
+  ]
+};
+
+// ===== Three.js Setup =====
+const container = document.getElementById('scene-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x1a1410, 80, 250);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.position.set(55, 35, 55);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 25;
+controls.maxDistance = 120;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.target.set(0, 18, 0);
+controls.autoRotate = false;
+controls.autoRotateSpeed = 0.5;
+
+// ===== Lighting =====
+const ambientLight = new THREE.AmbientLight(0x4a3a2a, 0.5);
+scene.add(ambientLight);
+
+const hemiLight = new THREE.HemisphereLight(0xd4a84b, 0x2a1f15, 0.4);
+scene.add(hemiLight);
+
+const keyLight = new THREE.DirectionalLight(0xffd8a0, 1.2);
+keyLight.position.set(30, 50, 25);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.width = 2048;
+keyLight.shadow.mapSize.height = 2048;
+keyLight.shadow.camera.left = -50;
+keyLight.shadow.camera.right = 50;
+keyLight.shadow.camera.top = 60;
+keyLight.shadow.camera.bottom = -10;
+keyLight.shadow.camera.near = 1;
+keyLight.shadow.camera.far = 120;
+keyLight.shadow.bias = -0.0005;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0x8a6a4a, 0.4);
+fillLight.position.set(-30, 20, -20);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xd4a84b, 0.6);
+rimLight.position.set(0, 40, -40);
+scene.add(rimLight);
+
+// Ground (subtle)
+const groundGeo = new THREE.CircleGeometry(80, 64);
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x2a2018,
+  roughness: 0.95,
+  metalness: 0.05,
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.1;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ===== Pagoda Construction =====
+const pagodaGroup = new THREE.Group();
+const partGroups = {};
+const partMeshes = [];
+let exploded = false;
+let explodeProgress = 0;
+let explodeTarget = 0;
+
+// Materials
+const woodMaterials = {
+  dark: new THREE.MeshStandardMaterial({ color: 0x5a3e22, roughness: 0.82, metalness: 0.08 }),
+  mid: new THREE.MeshStandardMaterial({ color: 0x8a6a3e, roughness: 0.78, metalness: 0.06 }),
+  light: new THREE.MeshStandardMaterial({ color: 0xa88848, roughness: 0.75, metalness: 0.05 }),
+  base: new THREE.MeshStandardMaterial({ color: 0x7a6a5a, roughness: 0.88, metalness: 0.04 }),
+  stone: new THREE.MeshStandardMaterial({ color: 0x5a504a, roughness: 0.92, metalness: 0.03 }),
+  roof: new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 0.85, metalness: 0.05 }),
+  gold: new THREE.MeshStandardMaterial({ color: 0xd4a84b, roughness: 0.4, metalness: 0.6 }),
+  goldBright: new THREE.MeshStandardMaterial({ color: 0xe8c878, roughness: 0.35, metalness: 0.7 }),
+  iron: new THREE.MeshStandardMaterial({ color: 0x8a7a6a, roughness: 0.6, metalness: 0.5 }),
+  red: new THREE.MeshStandardMaterial({ color: 0x8a3a2e, roughness: 0.7, metalness: 0.1 }),
+};
+
+// Highlight material
+const highlightMat = new THREE.MeshStandardMaterial({
+  color: 0xd4a84b,
+  roughness: 0.3,
+  metalness: 0.8,
+  emissive: 0xd4a84b,
+  emissiveIntensity: 0.15,
+});
+
+// Create octagonal geometry helper
+function createOctagon(radius, height, segments = 1) {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    if (i === 0) shape.moveTo(x, z);
+    else shape.lineTo(x, z);
+  }
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: height,
+    bevelEnabled: false,
+    curveSegments: 1,
+  });
+  geo.rotateX(-Math.PI / 2);
+  return geo;
+}
+
+// Create octagonal ring (for eaves/roofs)
+function createOctagonalRoof(radius, innerRadius, height, tilt = 0.35) {
+  const group = new THREE.Group();
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 - Math.PI / 2 + Math.PI / 8;
+    const nextAngle = angle + Math.PI / 4;
+
+    // Roof slope segment
+    const w = radius * 0.78;
+    const h = height + tilt * radius * 0.5;
+
+    const slopeGeo = new THREE.BufferGeometry();
+    const r1 = innerRadius;
+    const r2 = radius;
+    const vertices = new Float32Array([
+      Math.cos(angle) * r1, 0, Math.sin(angle) * r1,
+      Math.cos(nextAngle) * r1, 0, Math.sin(nextAngle) * r1,
+      Math.cos(nextAngle) * r2, h, Math.sin(nextAngle) * r2,
+      Math.cos(angle) * r1, 0, Math.sin(angle) * r1,
+      Math.cos(nextAngle) * r2, h, Math.sin(nextAngle) * r2,
+      Math.cos(angle) * r2, h, Math.sin(angle) * r2,
+    ]);
+    slopeGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    slopeGeo.computeVertexNormals();
+
+    const slopeMesh = new THREE.Mesh(slopeGeo, woodMaterials.roof);
+    slopeMesh.castShadow = true;
+    slopeMesh.receiveShadow = true;
+    group.add(slopeMesh);
+  }
+
+  // Eave edge (decorative line)
+  const edgeGeo = new THREE.TorusGeometry(radius * 0.96, 0.15, 6, 8);
+  const edgeMesh = new THREE.Mesh(edgeGeo, woodMaterials.dark);
+  edgeMesh.rotation.x = Math.PI / 2;
+  edgeMesh.position.y = height;
+  group.add(edgeMesh);
+
+  return group;
+}
+
+// Create dougong ring
+function createDougongRing(radius, y) {
+  const group = new THREE.Group();
+  const count = 24;
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+
+    // Bracket block
+    const blockGeo = new THREE.BoxGeometry(0.8, 0.5, 0.6);
+    const block = new THREE.Mesh(blockGeo, woodMaterials.mid);
+    block.position.set(x, y, z);
+    block.lookAt(0, y, 0);
+    block.castShadow = true;
+    group.add(block);
+
+    // Arms extending outward
+    const armGeo = new THREE.BoxGeometry(0.3, 0.25, 0.9);
+    const arm = new THREE.Mesh(armGeo, woodMaterials.light);
+    arm.position.set(
+      Math.cos(angle) * (radius + 0.4),
+      y + 0.1,
+      Math.sin(angle) * (radius + 0.4)
+    );
+    arm.lookAt(
+      Math.cos(angle) * (radius + 1),
+      y + 0.1,
+      Math.sin(angle) * (radius + 1)
+    );
+    arm.castShadow = true;
+    group.add(arm);
+
+    // Upper block
+    const upperGeo = new THREE.BoxGeometry(0.6, 0.4, 0.5);
+    const upper = new THREE.Mesh(upperGeo, woodMaterials.dark);
+    upper.position.set(
+      Math.cos(angle) * (radius + 0.2),
+      y + 0.45,
+      Math.sin(angle) * (radius + 0.2)
+    );
+    upper.lookAt(0, y + 0.45, 0);
+    upper.castShadow = true;
+    group.add(upper);
+  }
+  return group;
+}
+
+// Create column ring
+function createColumnRing(radius, height, y, columnCount = 24) {
+  const group = new THREE.Group();
+  for (let i = 0; i < columnCount; i++) {
+    const angle = (i / columnCount) * Math.PI * 2;
+    const colGeo = new THREE.CylinderGeometry(0.35, 0.4, height, 8);
+    const col = new THREE.Mesh(colGeo, woodMaterials.mid);
+    col.position.set(
+      Math.cos(angle) * radius,
+      y + height / 2,
+      Math.sin(angle) * radius
+    );
+    col.castShadow = true;
+    col.receiveShadow = true;
+    group.add(col);
+  }
+
+  // Inner columns (8)
+  const innerRadius = radius * 0.5;
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const colGeo = new THREE.CylinderGeometry(0.4, 0.45, height, 8);
+    const col = new THREE.Mesh(colGeo, woodMaterials.dark);
+    col.position.set(
+      Math.cos(angle) * innerRadius,
+      y + height / 2,
+      Math.sin(angle) * innerRadius
+    );
+    col.castShadow = true;
+    group.add(col);
+  }
+
+  return group;
+}
+
+// Create wall/facade between columns
+function createWallRing(radius, height, y, opacity = 1) {
+  const group = new THREE.Group();
+  for (let i = 0; i < 8; i++) {
+    const angle1 = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    const angle2 = ((i + 1) / 8) * Math.PI * 2 - Math.PI / 2;
+
+    const x1 = Math.cos(angle1) * radius;
+    const z1 = Math.sin(angle1) * radius;
+    const x2 = Math.cos(angle2) * radius;
+    const z2 = Math.sin(angle2) * radius;
+
+    const midAngle = (angle1 + angle2) / 2;
+    const midRadius = radius * 0.98;
+
+    const w = Math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2);
+    const wallGeo = new THREE.BoxGeometry(w * 0.9, height * 0.7, 0.15);
+    const wallMat = woodMaterials.mid.clone();
+    wallMat.transparent = opacity < 1;
+    wallMat.opacity = opacity;
+    const wall = new THREE.Mesh(wallGeo, wallMat);
+    wall.position.set(
+      Math.cos(midAngle) * midRadius,
+      y + height * 0.35,
+      Math.sin(midAngle) * midRadius
+    );
+    wall.lookAt(0, y + height * 0.35, 0);
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    group.add(wall);
+  }
+  return group;
+}
+
+// Create floor
+function createFloor(radius, y) {
+  const geo = createOctagon(radius, 0.2);
+  const mesh = new THREE.Mesh(geo, woodMaterials.dark);
+  mesh.position.y = y;
+  mesh.receiveShadow = true;
+  mesh.castShadow = true;
+  return mesh;
+}
+
+// ===== Build Pagoda Parts =====
+
+// 1. BASE (塔基)
+function buildBase() {
+  const group = new THREE.Group();
+  group.userData = { partId: 'base', explodeY: -2 };
+
+  // Lower base (square)
+  const lowerBaseGeo = new THREE.BoxGeometry(36, 2.5, 36);
+  const lowerBase = new THREE.Mesh(lowerBaseGeo, woodMaterials.stone);
+  lowerBase.position.y = 1.25;
+  lowerBase.castShadow = true;
+  lowerBase.receiveShadow = true;
+  lowerBase.userData = { partId: 'base' };
+  group.add(lowerBase);
+
+  // Upper base (octagonal)
+  const upperBaseGeo = createOctagon(16, 1.8);
+  const upperBase = new THREE.Mesh(upperBaseGeo, woodMaterials.base);
+  upperBase.position.y = 3.4;
+  upperBase.castShadow = true;
+  upperBase.receiveShadow = true;
+  upperBase.userData = { partId: 'base' };
+  group.add(upperBase);
+
+  // Base steps
+  for (let i = 0; i < 4; i++) {
+    const stepGeo = new THREE.BoxGeometry(8 - i * 1.5, 0.3, 6 - i * 1);
+    const step = new THREE.Mesh(stepGeo, woodMaterials.stone);
+    step.position.set(0, 2.5 + i * 0.3, 10);
+    step.castShadow = true;
+    step.userData = { partId: 'base' };
+    group.add(step);
+  }
+
+  partMeshes.push(...group.children);
+  return group;
+}
+
+// 2. LAYER (明层)
+function buildLayer(layerIndex, radius, height, y, isBottom = false) {
+  const group = new THREE.Group();
+  const partId = `layer${layerIndex}`;
+  group.userData = { partId, explodeY: (layerIndex - 1) * 5 };
+
+  // Floor
+  const floor = createFloor(radius, y);
+  floor.userData = { partId };
+  group.add(floor);
+
+  // Columns
+  const colHeight = height * 0.55;
+  const cols = createColumnRing(radius * 0.95, colHeight, y + 0.2);
+  cols.traverse(c => { if (c.isMesh) c.userData = { partId }; });
+  group.add(cols);
+
+  // Walls (with door openings)
+  const walls = createWallRing(radius * 0.93, colHeight, y + 0.2, 0.85);
+  walls.traverse(c => { if (c.isMesh) c.userData = { partId }; });
+  group.add(walls);
+
+  // Dougong
+  const dougong = createDougongRing(radius * 0.96, y + colHeight + 0.3);
+  dougong.traverse(c => { if (c.isMesh) c.userData = { partId: 'dougong' }; });
+  group.add(dougong);
+
+  // Roof/eaves
+  const roofHeight = height * 0.25;
+  const roof = createOctagonalRoof(radius * 1.15, radius * 0.9, roofHeight, 0.3);
+  roof.position.y = y + colHeight + 0.6;
+  roof.traverse(c => { if (c.isMesh) c.userData = { partId: 'roof' }; });
+  group.add(roof);
+
+  // Inner shrine platform
+  const platformGeo = new THREE.CylinderGeometry(radius * 0.25, radius * 0.28, 0.5, 8);
+  const platform = new THREE.Mesh(platformGeo, woodMaterials.dark);
+  platform.position.y = y + 0.45;
+  platform.castShadow = true;
+  platform.userData = { partId };
+  group.add(platform);
+
+  // Buddha figure (simplified)
+  const buddhaGeo = new THREE.CylinderGeometry(0.6, 0.8, layerIndex === 1 ? 3.5 : 2, 12);
+  const buddhaMat = woodMaterials.goldBright.clone();
+  buddhaMat.emissive = new THREE.Color(0xd4a84b);
+  buddhaMat.emissiveIntensity = 0.1;
+  const buddha = new THREE.Mesh(buddhaGeo, buddhaMat);
+  buddha.position.y = y + 0.7 + (layerIndex === 1 ? 1.75 : 1);
+  buddha.castShadow = true;
+  buddha.userData = { partId };
+  group.add(buddha);
+
+  // Buddha head
+  const headGeo = new THREE.SphereGeometry(0.5, 12, 8);
+  const head = new THREE.Mesh(headGeo, buddhaMat);
+  head.position.y = buddha.position.y + (layerIndex === 1 ? 1.75 : 1) + 0.3;
+  head.castShadow = true;
+  head.userData = { partId };
+  group.add(head);
+
+  // Balcony railing (for upper layers)
+  if (layerIndex > 1) {
+    const railingHeight = 0.6;
+    for (let i = 0; i < 8; i++) {
+      const angle1 = (i / 8) * Math.PI * 2 - Math.PI / 2;
+      const angle2 = ((i + 1) / 8) * Math.PI * 2 - Math.PI / 2;
+      const x1 = Math.cos(angle1) * radius * 1.1;
+      const z1 = Math.sin(angle1) * radius * 1.1;
+      const x2 = Math.cos(angle2) * radius * 1.1;
+      const z2 = Math.sin(angle2) * radius * 1.1;
+      const w = Math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2);
+      const railGeo = new THREE.BoxGeometry(w * 0.85, railingHeight, 0.1);
+      const rail = new THREE.Mesh(railGeo, woodMaterials.light);
+      const midAngle = (angle1 + angle2) / 2;
+      rail.position.set(
+        Math.cos(midAngle) * radius * 1.1,
+        y + colHeight + 0.1,
+        Math.sin(midAngle) * radius * 1.1
+      );
+      rail.lookAt(0, y + colHeight + 0.1, 0);
+      rail.castShadow = true;
+      rail.userData = { partId };
+      group.add(rail);
+    }
+  }
+
+  // Bottom layer: additional skirt roof (重檐)
+  if (isBottom) {
+    const skirtRoof = createOctagonalRoof(radius * 1.3, radius * 1.05, 1.2, 0.4);
+    skirtRoof.position.y = y + colHeight + 0.1;
+    skirtRoof.traverse(c => { if (c.isMesh) c.userData = { partId: 'roof' }; });
+    group.add(skirtRoof);
+  }
+
+  // Collect meshes
+  group.traverse(c => {
+    if (c.isMesh) {
+      c.userData.originalPos = c.position.clone();
+      c.userData.originalParentPos = new THREE.Vector3();
+      partMeshes.push(c);
+    }
+  });
+
+  return group;
+}
+
+// 3. STEEPLE (塔刹)
+function buildSteeple(baseY) {
+  const group = new THREE.Group();
+  group.userData = { partId: 'steeple', explodeY: 30 };
+
+  let y = baseY;
+
+  // Base (须弥座)
+  const baseGeo = new THREE.CylinderGeometry(1.2, 1.5, 1, 8);
+  const base = new THREE.Mesh(baseGeo, woodMaterials.iron);
+  base.position.y = y + 0.5;
+  base.castShadow = true;
+  base.userData = { partId: 'steeple' };
+  group.add(base);
+  y += 1;
+
+  // Lotus (仰莲)
+  const lotusGeo = new THREE.CylinderGeometry(1.5, 1.2, 0.6, 8);
+  const lotus = new THREE.Mesh(lotusGeo, woodMaterials.gold);
+  lotus.position.y = y + 0.3;
+  lotus.castShadow = true;
+  lotus.userData = { partId: 'steeple' };
+  group.add(lotus);
+  y += 0.6;
+
+  // Petals
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const petalGeo = new THREE.SphereGeometry(0.35, 6, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+    const petal = new THREE.Mesh(petalGeo, woodMaterials.goldBright);
+    petal.position.set(
+      Math.cos(angle) * 1.3,
+      y,
+      Math.sin(angle) * 1.3
+    );
+    petal.scale.set(1, 1.5, 0.5);
+    petal.castShadow = true;
+    petal.userData = { partId: 'steeple' };
+    group.add(petal);
+  }
+  y += 0.3;
+
+  // Xianglun (相轮) - 5 discs
+  for (let i = 0; i < 5; i++) {
+    const r = 0.9 - i * 0.12;
+    const discGeo = new THREE.CylinderGeometry(r, r, 0.25, 8);
+    const disc = new THREE.Mesh(discGeo, woodMaterials.iron);
+    disc.position.y = y + 0.15 + i * 0.35;
+    disc.castShadow = true;
+    disc.userData = { partId: 'steeple' };
+    group.add(disc);
+  }
+  y += 5 * 0.35 + 0.15;
+
+  // Yanguang (圆光) - sphere
+  const sphereGeo = new THREE.SphereGeometry(0.5, 12, 8);
+  const sphere = new THREE.Mesh(sphereGeo, woodMaterials.goldBright);
+  sphere.position.y = y + 0.3;
+  sphere.castShadow = true;
+  sphere.userData = { partId: 'steeple' };
+  group.add(sphere);
+  y += 0.6;
+
+  // Yangyue (仰月) - crescent
+  const moonGeo = new THREE.TorusGeometry(0.6, 0.08, 6, 12, Math.PI);
+  const moon = new THREE.Mesh(moonGeo, woodMaterials.gold);
+  moon.position.y = y + 0.1;
+  moon.rotation.x = Math.PI;
+  moon.castShadow = true;
+  moon.userData = { partId: 'steeple' };
+  group.add(moon);
+  y += 0.3;
+
+  // Baogai (宝盖) - cone
+  const canopyGeo = new THREE.ConeGeometry(0.8, 0.6, 8);
+  const canopy = new THREE.Mesh(canopyGeo, woodMaterials.iron);
+  canopy.position.y = y + 0.3;
+  canopy.castShadow = true;
+  canopy.userData = { partId: 'steeple' };
+  group.add(canopy);
+  y += 0.6;
+
+  // Baozhu (宝珠) - top sphere
+  const jewelGeo = new THREE.SphereGeometry(0.4, 12, 8);
+  const jewel = new THREE.Mesh(jewelGeo, woodMaterials.goldBright);
+  jewel.position.y = y + 0.4;
+  jewel.castShadow = true;
+  jewel.userData = { partId: 'steeple' };
+  group.add(jewel);
+
+  // Spike
+  const spikeGeo = new THREE.ConeGeometry(0.08, 0.6, 6);
+  const spike = new THREE.Mesh(spikeGeo, woodMaterials.gold);
+  spike.position.y = y + 0.9;
+  spike.castShadow = true;
+  spike.userData = { partId: 'steeple' };
+  group.add(spike);
+
+  group.traverse(c => {
+    if (c.isMesh) {
+      c.userData.originalPos = c.position.clone();
+      partMeshes.push(c);
+    }
+  });
+
+  return group;
+}
+
+// Assemble the pagoda
+const base = buildBase();
+pagodaGroup.add(base);
+
+const layerConfigs = [
+  { index: 1, radius: 14, height: 11, y: 4.3, isBottom: true },
+  { index: 2, radius: 12.5, height: 9, y: 17 },
+  { index: 3, radius: 11, height: 8, y: 27 },
+  { index: 4, radius: 9.5, height: 7.5, y: 36 },
+  { index: 5, radius: 8, height: 7, y: 44.5 },
+];
+
+layerConfigs.forEach(cfg => {
+  const layer = buildLayer(cfg.index, cfg.radius, cfg.height, cfg.y, cfg.isBottom);
+  pagodaGroup.add(layer);
+});
+
+// Steeple on top
+const steeple = buildSteeple(52);
+pagodaGroup.add(steeple);
+
+scene.add(pagodaGroup);
+
+// Store original positions for all meshes
+partMeshes.forEach(mesh => {
+  if (!mesh.userData.originalPos) {
+    mesh.userData.originalPos = mesh.position.clone();
+  }
+  // Store world position
+  const worldPos = new THREE.Vector3();
+  mesh.getWorldPosition(worldPos);
+  mesh.userData.originalWorldPos = worldPos.clone();
+});
+
+// ===== Interaction =====
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredPart = null;
+let selectedPart = null;
+const tooltip = document.getElementById('tooltip');
+
+function onMouseMove(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(partMeshes, false);
+
+  if (intersects.length > 0) {
+    const partId = intersects[0].object.userData.partId;
+    if (partId) {
+      const partData = PAGODA_DATA.parts.find(p => p.id === partId);
+      if (partData) {
+        hoveredPart = partId;
+        tooltip.textContent = partData.name;
+        tooltip.style.left = (event.clientX + 15) + 'px';
+        tooltip.style.top = (event.clientY + 10) + 'px';
+        tooltip.classList.add('visible');
+        document.body.style.cursor = 'pointer';
+        return;
+      }
+    }
+  }
+
+  hoveredPart = null;
+  tooltip.classList.remove('visible');
+  document.body.style.cursor = 'default';
+}
+
+function onClick(event) {
+  if (event.target.closest('#info-panel') || event.target.closest('#top-bar') || event.target.closest('#bottom-bar')) return;
+
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(partMeshes, false);
+
+  if (intersects.length > 0) {
+    const partId = intersects[0].object.userData.partId;
+    if (partId) {
+      selectPart(partId);
+    }
+  }
+}
+
+function selectPart(partId) {
+  selectedPart = partId;
+  const partData = PAGODA_DATA.parts.find(p => p.id === partId);
+  if (!partData) return;
+
+  // Build panel content
+  let html = `
+    <div class="panel-tag">${partData.tag}</div>
+    <div class="panel-title">${partData.name}</div>
+    <div class="panel-subtitle">${partData.subtitle}</div>
+    <div class="panel-divider"></div>
+    <div class="panel-section">
+      <div class="panel-section-title">详细介绍</div>
+      <div class="panel-text">${partData.description}</div>
+    </div>
+  `;
+
+  if (partData.data && partData.data.length > 0) {
+    html += `<div class="panel-section">
+      <div class="panel-section-title">关键数据</div>
+      <div class="panel-data">`;
+    partData.data.forEach(d => {
+      html += `<div class="data-item"><div class="data-label">${d.label}</div><div class="data-value">${d.value}</div></div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  if (partData.facts && partData.facts.length > 0) {
+    html += `<div class="panel-section">
+      <div class="panel-section-title">要点</div>
+      <div class="panel-text">`;
+    partData.facts.forEach(f => {
+      html += `• ${f}<br>`;
+    });
+    html += `</div></div>`;
+  }
+
+  document.getElementById('panel-content').innerHTML = html;
+  document.getElementById('info-panel').classList.add('open');
+
+  // Highlight selected part
+  highlightPart(partId);
+
+  // Update layer selector
+  document.querySelectorAll('.layer-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.partId === partId);
+  });
+}
+
+function highlightPart(partId) {
+  partMeshes.forEach(mesh => {
+    if (mesh.userData.partId === partId) {
+      if (!mesh.userData.savedMaterial) {
+        mesh.userData.savedMaterial = mesh.material;
+      }
+      mesh.material = highlightMat;
+    } else {
+      if (mesh.userData.savedMaterial) {
+        mesh.material = mesh.userData.savedMaterial;
+        delete mesh.userData.savedMaterial;
+      }
+    }
+  });
+}
+
+function clearHighlight() {
+  partMeshes.forEach(mesh => {
+    if (mesh.userData.savedMaterial) {
+      mesh.material = mesh.userData.savedMaterial;
+      delete mesh.userData.savedMaterial;
+    }
+  });
+}
+
+renderer.domElement.addEventListener('mousemove', onMouseMove);
+renderer.domElement.addEventListener('click', onClick);
+
+// ===== Controls =====
+document.getElementById('panel-close').addEventListener('click', () => {
+  document.getElementById('info-panel').classList.remove('open');
+  clearHighlight();
+  selectedPart = null;
+  document.querySelectorAll('.layer-chip').forEach(chip => chip.classList.remove('active'));
+});
+
+document.getElementById('btn-explode').addEventListener('click', () => {
+  exploded = !exploded;
+  explodeTarget = exploded ? 1 : 0;
+  document.getElementById('btn-explode').classList.toggle('active', exploded);
+  document.getElementById('explode-status').classList.toggle('visible', exploded);
+  document.getElementById('explode-status').textContent = exploded ? 'EXPLODED VIEW: ON' : '';
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  camera.position.set(55, 35, 55);
+  controls.target.set(0, 18, 0);
+  controls.update();
+});
+
+document.getElementById('btn-auto').addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  document.getElementById('btn-auto').classList.toggle('active', controls.autoRotate);
+});
+
+// Layer selector chips
+const layerSelector = document.getElementById('layer-selector');
+PAGODA_DATA.parts.forEach(part => {
+  const chip = document.createElement('div');
+  chip.className = 'layer-chip';
+  chip.textContent = part.name;
+  chip.dataset.partId = part.id;
+  chip.addEventListener('click', () => selectPart(part.id));
+  layerSelector.appendChild(chip);
+});
+
+// ===== Explode Animation =====
+function updateExplode() {
+  const speed = 0.04;
+  if (Math.abs(explodeProgress - explodeTarget) < 0.001) {
+    explodeProgress = explodeTarget;
+  } else {
+    explodeProgress += (explodeTarget - explodeProgress) * speed;
+  }
+
+  if (explodeProgress > 0.001 || explodeTarget > 0) {
+    const t = explodeProgress;
+    // Vertical explode distances per part
+    const explodeOffsets = {
+      'base': -3 * t,
+      'layer1': 0,
+      'layer2': 4 * t,
+      'layer3': 8 * t,
+      'layer4': 12 * t,
+      'layer5': 16 * t,
+      'roof': 0,
+      'dougong': 2 * t,
+      'steeple': 22 * t,
+    };
+
+    partMeshes.forEach(mesh => {
+      const partId = mesh.userData.partId;
+      const offset = explodeOffsets[partId] || 0;
+      if (mesh.userData.originalPos) {
+        mesh.position.y = mesh.userData.originalPos.y + offset;
+      }
+
+      // Slight horizontal spread for dougong
+      if (partId === 'dougong' && explodeProgress > 0) {
+        const dir = mesh.position.clone();
+        dir.y = 0;
+        dir.normalize().multiplyScalar(1.5 * t);
+        mesh.position.x = mesh.userData.originalPos.x + dir.x;
+        mesh.position.z = mesh.userData.originalPos.z + dir.z;
+      }
+    });
+  }
+}
+
+// ===== Animation Loop =====
+function animate() {
+  requestAnimationFrame(animate);
+  updateExplode();
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ===== Resize =====
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ===== Load Progress =====
+let loadProgress = 0;
+const loadInterval = setInterval(() => {
+  loadProgress += Math.random() * 20;
+  if (loadProgress >= 100) {
+    loadProgress = 100;
+    clearInterval(loadInterval);
+    setTimeout(() => {
+      document.getElementById('loader').classList.add('hidden');
+      animate();
+    }, 400);
+  }
+  document.getElementById('loader-fill').style.width = loadProgress + '%';
+}, 80);
+
+// Start animation immediately (behind loader)
+window.THREE = THREE;
+window.scene = scene;
+window.camera = camera;
+window.renderer = renderer;
+animate();
+
+</script>
+<script src="theme.js"></script>
+</body>
+</html>

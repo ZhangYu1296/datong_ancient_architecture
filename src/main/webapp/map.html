@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大同古建漫游 · 古建漫游地图</title>
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <style>
+    /* 地图页：佛小伴对话框居中弹出 */
+    body.npc-top .npc-card {
+      top: 50%; left: 50%; bottom: auto;
+      transform: translate(-50%, -46%) scale(.92);
+      width: min(450px, 92vw);
+      box-shadow: 0 26px 60px rgba(20, 12, 4, .55), 0 0 0 5px rgba(240, 201, 79, .28), inset 0 0 0 1px rgba(255, 255, 255, .6);
+    }
+    body.npc-top .npc-card.show { transform: translate(-50%, -50%) scale(1); }
+    body.npc-top .npc-card::before { display: none; }
+    body.npc-top .npc-mini { top: auto; bottom: 22px; }
+  </style>
+</head>
+<body class="npc-top">
+
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <div class="logo"><span class="seal">同</span>大同古建漫游</div>
+    <div class="spacer"></div>
+    <div class="progress-box" title="碎片收集进度">
+      <span class="label">碎片</span>
+      <span class="num" id="fragNum">0/6</span>
+      <div class="progress-pips" id="fragPips"></div>
+    </div>
+    <button class="btn btn-gold" onclick="location.href='museum.html'">碎片博物馆</button>
+    <button class="btn btn-ghost" onclick="location.href='pointcloud/index.html'">点云秘境・古建数字舱</button>
+    <button class="btn btn-ghost" onclick="location.href='intro.html'">项目介绍</button>
+  </header>
+
+  <!-- 漫游地图（蜿蜒路线 · 六大点位） -->
+  <div id="mapViewport">
+    <div class="map-bg"></div>
+    <div id="mapWorld">
+      <div class="paper-bg"></div>
+      <svg id="mapSvg" width="2200" height="1500" viewBox="0 0 2200 1500"></svg>
+      <div class="map-title">大同古建漫游图<small>北魏 · 辽金 · 元 · 明</small></div>
+      <!-- 点位由 map.js 动态生成 -->
+    </div>
+  </div>
+
+  <div class="map-help">
+    <kbd>拖动</kbd> 平移地图 &nbsp;·&nbsp; <kbd>滚轮</kbd> 缩放地图<br>
+    点击 <b style="color:#f0c94f">金色点位</b> 进入关卡，灰色为未解锁
+  </div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="js/data.js?v=5"></script>
+  <script src="js/progress.js?v=5"></script>
+  <script src="js/npc.js?v=5"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/gujian-hanging.js?v=2"></script>
+  <script src="js/gujian-huayan.js?v=2"></script>
+  <script src="js/gujian-shanhua.js?v=2"></script>
+  <script src="js/buildings.js?v=2"></script>
+  <script src="js/map.js?v=5"></script>
+</body>
+</html>

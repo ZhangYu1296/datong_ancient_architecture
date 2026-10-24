@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>悬空寺 · 三维交互模型</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231a1410'/%3E<path d='M32 10 L50 22 L50 40 L32 54 L14 40 L14 22 Z' fill='%23c9a84c'/%3E<path d='M22 24 L42 24 M22 30 L42 30 M22 36 L42 36' stroke='%231a1410' stroke-width='2.5'/%3E%3C/svg%3E">
+<style>
+:root {
+  --ink-deep: #0f1318;
+  --ink-dark: #1a1f26;
+  --ink-mid: #252d36;
+  --stone: #4a5058;
+  --stone-light: #6a7078;
+  --wood-light: #c8a878;
+  --wood-mid: #9a7848;
+  --wood-dark: #5a3e22;
+  --wood-deep: #3a2a18;
+  --gold: #d4a84b;
+  --gold-bright: #e8c878;
+  --red-seal: #b8362e;
+  --moss: #5a6a48;
+  --text-light: #d8d0c0;
+  --text-dim: #a09888;
+  --text-mute: #6a6258;
+  --bg-overlay: rgba(15, 19, 24, 0.93);
+  --border-soft: rgba(196, 168, 120, 0.2);
+  --border-mid: rgba(196, 168, 120, 0.4);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--ink-deep);
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  color: var(--text-light);
+}
+
+#scene-container {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(to bottom, #1a2028 0%, #0f1318 50%, #080a0d 100%);
+}
+
+#scene-container::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(90, 106, 72, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(212, 168, 75, 0.05) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+canvas { display: block; }
+
+/* ===== Loading ===== */
+#loader {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--ink-deep);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.8s ease;
+}
+
+#loader.hidden { opacity: 0; pointer-events: none; }
+
+.loader-title {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 2.4rem;
+  color: var(--gold-bright);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.15em;
+  text-shadow: 0 0 20px rgba(212, 168, 75, 0.3);
+}
+
+.loader-sub {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.85rem;
+  color: var(--text-mute);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+}
+
+.loader-bar {
+  width: 200px;
+  height: 2px;
+  background: rgba(196, 168, 120, 0.15);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.loader-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--stone), var(--wood-mid), var(--gold-bright));
+  width: 0%;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(212, 168, 75, 0.5);
+}
+
+/* ===== Top Bar ===== */
+#top-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: 1.2rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 10;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(15, 19, 24, 0.7) 0%, transparent 100%);
+}
+
+.top-left { pointer-events: auto; }
+
+.top-title {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 1.6rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+
+.top-sub {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.72rem;
+  color: var(--text-mute);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  margin-top: 0.3rem;
+}
+
+.top-right {
+  pointer-events: auto;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.ctrl-btn {
+  background: rgba(26, 31, 38, 0.75);
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  padding: 0.5rem 1rem;
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  letter-spacing: 0.05em;
+}
+
+.ctrl-btn:hover {
+  background: rgba(58, 42, 24, 0.8);
+  border-color: var(--border-mid);
+  color: var(--gold-bright);
+}
+
+.ctrl-btn.active {
+  background: rgba(90, 62, 34, 0.5);
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+/* ===== Info Panel ===== */
+#info-panel {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translate(100%, -50%);
+  width: 440px;
+  max-height: 78vh;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(16px);
+  border-left: 1px solid var(--border-mid);
+  border-top: 1px solid var(--border-mid);
+  border-bottom: 1px solid var(--border-mid);
+  border-radius: 4px 0 0 4px;
+  padding: 2rem 2.2rem;
+  overflow-y: auto;
+  z-index: 20;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: -10px 0 40px rgba(0,0,0,0.4);
+}
+
+#info-panel.open { transform: translate(0, -50%); }
+
+#info-panel::-webkit-scrollbar { width: 4px; }
+#info-panel::-webkit-scrollbar-track { background: transparent; }
+#info-panel::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+
+.panel-close {
+  position: absolute;
+  top: 1rem; right: 1.2rem;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text-mute);
+  font-size: 1.2rem;
+  transition: color 0.2s;
+  background: none; border: none;
+}
+
+.panel-close:hover { color: var(--gold-bright); }
+
+.panel-tag {
+  display: inline-block;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.6rem;
+}
+
+.panel-title {
+  font-family: 'ZCOOL XiaoWei', 'Songti SC', 'STSong', '宋体', serif;
+  font-size: 1.8rem;
+  color: var(--gold-bright);
+  margin-bottom: 0.3rem;
+  line-height: 1.2;
+}
+
+.panel-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-mute);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.05em;
+}
+
+.panel-divider {
+  height: 1px;
+  background: linear-gradient(to right, var(--border-mid), transparent);
+  margin: 1.2rem 0;
+}
+
+.panel-section { margin-bottom: 1.2rem; }
+
+.panel-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--wood-light);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.panel-section-title::before {
+  content: '';
+  width: 3px; height: 12px;
+  background: var(--gold);
+  border-radius: 1px;
+}
+
+.panel-text {
+  font-size: 0.88rem;
+  line-height: 1.85;
+  color: var(--text-dim);
+  text-align: justify;
+}
+
+.panel-data {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1rem;
+  margin-top: 0.6rem;
+}
+
+.data-item { display: flex; flex-direction: column; }
+
+.data-label {
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  letter-spacing: 0.05em;
+}
+
+.data-value {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 1.05rem;
+  color: var(--gold-bright);
+  font-weight: 500;
+}
+
+/* ===== Bottom Bar ===== */
+#bottom-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  padding: 1rem 2rem 1.5rem;
+  z-index: 10;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(15, 19, 24, 0.8) 0%, transparent 100%);
+}
+
+.layer-selector {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  pointer-events: auto;
+  flex-wrap: wrap;
+}
+
+.layer-chip {
+  background: rgba(26, 31, 38, 0.75);
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  padding: 0.45rem 1rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', '宋体', serif;
+  white-space: nowrap;
+}
+
+.layer-chip:hover {
+  background: rgba(58, 42, 24, 0.8);
+  color: var(--gold-bright);
+  border-color: var(--border-mid);
+}
+
+.layer-chip.active {
+  background: rgba(90, 62, 34, 0.5);
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+.hint-text {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  margin-top: 0.8rem;
+  letter-spacing: 0.1em;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  text-transform: uppercase;
+}
+
+/* ===== Tooltip ===== */
+#tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(15, 19, 24, 0.92);
+  border: 1px solid var(--border-mid);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.78rem;
+  color: var(--gold-bright);
+  border-radius: 2px;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+#tooltip.visible { opacity: 1; }
+
+.explode-status {
+  position: fixed;
+  bottom: 5rem;
+  left: 2rem;
+  z-index: 10;
+  font-size: 0.72rem;
+  color: var(--text-mute);
+  letter-spacing: 0.1em;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.explode-status.visible { opacity: 1; }
+
+.corner-deco {
+  position: fixed;
+  width: 60px; height: 60px;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.25;
+}
+
+.corner-deco.tl { top: 0; left: 0; border-top: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+.corner-deco.tr { top: 0; right: 0; border-top: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+.corner-deco.bl { bottom: 0; left: 0; border-bottom: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+.corner-deco.br { bottom: 0; right: 0; border-bottom: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+
+@media (max-width: 768px) {
+  #info-panel { width: 90%; }
+  .top-title { font-size: 1.2rem; }
+  .layer-chip { font-size: 0.7rem; padding: 0.35rem 0.7rem; }
+}
+</style>
+</head>
+<body>
+
+<div id="scene-container"></div>
+
+<div class="corner-deco tl"></div>
+<div class="corner-deco tr"></div>
+<div class="corner-deco bl"></div>
+<div class="corner-deco br"></div>
+
+<div id="loader">
+  <div class="loader-title">悬空寺</div>
+  <div class="loader-sub">Hanging Temple · 491 AD</div>
+  <div class="loader-bar"><div class="loader-bar-fill" id="loader-fill"></div></div>
+</div>
+
+<div id="top-bar">
+  <div class="top-left">
+    <div class="top-title">悬空寺</div>
+    <div class="top-sub">Xuankong Temple · Mt. Hengshan</div>
+  </div>
+  <div class="top-right">
+    <button class="ctrl-btn" id="btn-explode">拆解视图</button>
+    <button class="ctrl-btn" id="btn-reset">重置视角</button>
+    <button class="ctrl-btn" id="btn-auto">自动旋转</button>
+  </div>
+</div>
+
+<div id="info-panel">
+  <button class="panel-close" id="panel-close">✕</button>
+  <div id="panel-content"></div>
+</div>
+
+<div id="bottom-bar">
+  <div class="layer-selector" id="layer-selector"></div>
+  <div class="hint-text">点击寺内各部分查看详情 · 拖拽旋转 · 滚轮缩放</div>
+</div>
+
+<div class="explode-status" id="explode-status">EXPLODED VIEW: ON</div>
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../three-lib/three/three.module.js",
+    "three/addons/": "../three-lib/three/addons/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ===== Data =====
+const TEMPLE_DATA = {
+  meta: {
+    name: '悬空寺',
+    fullName: '悬空寺（原名玄空阁）',
+    englishName: 'Hanging Temple (Xuankong Si)',
+    builtYear: '北魏太和十五年 (491年)',
+    age: '1500余年',
+    location: '山西大同浑源县 · 恒山金龙峡翠屏峰',
+    area: '152.5平方米',
+    rooms: '40间殿阁',
+    statues: '80多尊（铜、铁、石、泥塑）',
+    height: '距地面约50米（原约90米）',
+    structure: '木质框架式结构 · 半插飞梁为基',
+    beams: '27根铁杉木横梁（桐油浸泡）',
+    religion: '佛、道、儒三教合一（国内仅存）',
+    status: '全国重点文物保护单位',
+    nickname: '"悬挂在天上的建筑" — Time全球十大奇险建筑',
+  },
+  parts: [
+    {
+      id: 'cliff',
+      name: '翠屏峰崖壁',
+      subtitle: 'Cuiping Cliff Face',
+      tag: 'CLIFF',
+      color: 0x4a4840,
+      description: '悬空寺悬挂于北岳恒山金龙峡西侧翠屏峰的半崖峭壁间。选址极为巧妙——背靠天然凹形岩壁，如同一把巨大的"伞"，既遮挡雨水冲刷，又避免阳光直射，延缓木构老化。崖壁凹处形成天然风道，使寺庙免受强风正面侵袭。峡谷中的唐峪河蒸发的水汽被崖壁阻挡，也保护了木结构。古人根据道家"不闻鸡鸣犬吠之声"的要求，选择此绝壁之地建寺。',
+      data: [
+        { label: '位置', value: '翠屏峰半崖' },
+        { label: '距地面', value: '约50米' },
+        { label: '崖壁形态', value: '天然凹形' },
+        { label: '峡谷', value: '金龙峡' },
+      ],
+      facts: [
+        '背倚千仞峭壁，下临唐峪河峡谷',
+        '凹形崖壁天然遮雨避阳，保护木构千年不朽',
+        '道家遗训："不闻鸡鸣犬吠之声"决定选址',
+        'Time杂志评选全球十大奇险建筑之一',
+      ],
+    },
+    {
+      id: 'beams',
+      name: '半插飞梁（横梁）',
+      subtitle: 'Half-Inserted Flying Beams',
+      tag: 'BEAMS',
+      color: 0x6b5030,
+      description: '悬空寺真正的承重秘密在于27根深入岩壁的铁杉木横梁。这些横梁直径约50厘米，经桐油长时间浸泡防腐防虫。建造时先在崖壁上开凿方孔深1-2米，将横梁一端锯开缝隙、插入木楔，再打入石孔。木楔撑开横梁前端，如同现代"膨胀螺栓"原理——打得越深，卡得越紧。横梁打进岩壁三分之二，外露三分之一，形成强有力的悬臂杠杆，每根可承载数吨之重。只要横梁不断，寺庙就不倒。',
+      data: [
+        { label: '横梁数量', value: '27根' },
+        { label: '直径', value: '约50厘米' },
+        { label: '材质', value: '铁杉木' },
+        { label: '防腐处理', value: '桐油浸泡' },
+        { label: '入岩深度', value: '1-2米' },
+        { label: '原理', value: '膨胀螺栓式' },
+      ],
+      facts: [
+        '铁杉木质地坚硬，桐油浸泡后防腐防虫寿命超千年',
+        '木楔撑开横梁前端，牢牢卡在石洞中',
+        '外露三分之一形成悬臂杠杆结构',
+        '专家曾尝试拆除腐蚀横梁，拼尽全力纹丝不动',
+        '这种"膨胀螺栓"原理比西方早了一千多年',
+      ],
+    },
+    {
+      id: 'pillars',
+      name: '立柱支撑',
+      subtitle: 'Vertical Support Pillars',
+      tag: 'PILLARS',
+      color: 0x8a6a3e,
+      description: '远看悬空寺似乎仅靠十几根碗口粗的木柱支撑，给人摇摇欲坠之感。实际上这些立柱大多"悬而不承"——它们主要起辅助保险作用，并非主要承重结构。真正受力的是深入岩壁的27根横梁。立柱分为两类：承重柱和虚设柱（仅极端情况下受力）。当横梁承重到一定程度产生形变时，立柱才接触受力，起到"保险杠"作用。这种"主承于梁、辅以柱"的设计体现了古人对力学分配的深刻理解。',
+      data: [
+        { label: '立柱数量', value: '约30根' },
+        { label: '类型', value: '承重+虚设' },
+        { label: '直径', value: '约15厘米' },
+        { label: '作用', value: '辅助保险' },
+      ],
+      facts: [
+        '大部分立柱悬而不承，仅起装饰和保险作用',
+        '横梁为主要承重，立柱为辅助"保险杠"',
+        '极端载荷时立柱才接触受力',
+        '"悬空寺，半天高，三根马尾空中吊"——民间俚语',
+      ],
+    },
+    {
+      id: 'south-tower',
+      name: '南楼',
+      subtitle: 'South Tower',
+      tag: 'SOUTH TOWER',
+      color: 0x9a7848,
+      description: '南楼高三层，长约8米，宽约4米，是悬空寺的重要组成部分，主要为奉祀道教之所。从低到高分布着纯阳宫、三官殿和雷音殿。南楼与北楼通过栈道相连，形成"一院两楼"的布局。楼内殿阁虽小却布局精巧，体现了"小中见大、虚实相生"的建筑理念。南楼的三檐歇山顶高悬于峭壁之上，凌空欲飞。',
+      data: [
+        { label: '楼高', value: '三层' },
+        { label: '长度', value: '约8米' },
+        { label: '宽度', value: '约4米' },
+        { label: '宗教属性', value: '道教为主' },
+      ],
+      facts: [
+        '南楼主要奉祀道教人物造像',
+        '三檐歇山顶结构，凌空相望',
+        '与北楼通过上下两层栈道相连',
+        '体现"一院两楼"的总体布局',
+      ],
+    },
+    {
+      id: 'south-l1',
+      name: '纯阳宫（南楼一层）',
+      subtitle: 'Chunyang Palace · South L1',
+      tag: 'SOUTH L1',
+      color: 0xa88848,
+      description: '纯阳宫也称吕祖庙，位于南楼底层，是悬空寺中面积最大的殿宇之一。主要供奉道教八仙之一的吕洞宾。吕洞宾号纯阳子，故殿名"纯阳宫"。殿内造像精致，体现明代泥塑艺术特色。作为南楼的入口层，纯阳宫连接着寺院主体与上层殿阁，是信众参拜的第一站。',
+      data: [
+        { label: '位置', value: '南楼一层' },
+        { label: '主供', value: '吕洞宾（纯阳子）' },
+        { label: '别称', value: '吕祖庙' },
+        { label: '面积', value: '南楼最大殿' },
+      ],
+      facts: [
+        '吕洞宾为道教八仙之一，号纯阳子',
+        '纯阳宫是悬空寺面积最大的殿宇之一',
+        '殿内泥塑为明代珍品',
+        '连接寺院主体与上层殿阁的入口',
+      ],
+    },
+    {
+      id: 'south-l2',
+      name: '三官殿（南楼二层）',
+      subtitle: 'Sanguan Hall · South L2',
+      tag: 'SOUTH L2',
+      color: 0x9a7838,
+      description: '三官殿是悬空寺整个建筑中面积最大的一个殿，殿内塑像为明代泥塑珍品。三官指赐福于人的天官、赦罪于人的地官、为民解厄的水官，合称"三官大帝"。泥塑最高约2米，是悬空寺最大的塑像。下面左右均为侍女和老少臣子，还有天蓬元帅、龟蛇二将等造像。三官信仰源于东汉张道陵创立的五斗米道，是道教早期最重要的神祇之一。',
+      data: [
+        { label: '位置', value: '南楼二层' },
+        { label: '面积', value: '全寺最大殿' },
+        { label: '主供', value: '三官大帝' },
+        { label: '最大塑像', value: '高约2米' },
+      ],
+      facts: [
+        '天官赐福、地官赦罪、水官解厄',
+        '殿内泥塑为明代珍品，是全寺最大塑像',
+        '侍女、老少臣子、天蓬元帅、龟蛇二将等造像齐全',
+        '三官信仰源于五斗米道，道教早期核心神祇',
+      ],
+    },
+    {
+      id: 'south-l3',
+      name: '雷音殿（南楼三层）',
+      subtitle: 'Leiyin Hall · South L3',
+      tag: 'SOUTH L3',
+      color: 0x8a6828,
+      description: '雷音殿是佛教殿堂，位于南楼最高处。佛教认为佛祖释迦牟尼弘扬佛法时声音如雷鸣般响亮，故称"雷音殿"。作为南楼的顶层殿宇，雷音殿位置最高，视野开阔，体现了佛教在南楼道教建筑群中的独特地位。殿内供奉佛教造像，与下层道教殿宇形成佛道共存的格局。',
+      data: [
+        { label: '位置', value: '南楼三层（最高）' },
+        { label: '性质', value: '佛教殿堂' },
+        { label: '名称由来', value: '佛祖说法声如雷' },
+        { label: '视野', value: '南楼最佳' },
+      ],
+      facts: [
+        '佛祖说法声如雷鸣，故名雷音殿',
+        '南楼最高处，视野开阔',
+        '与下层道教殿宇形成佛道共存格局',
+        '体现悬空寺三教合一的包容精神',
+      ],
+    },
+    {
+      id: 'north-tower',
+      name: '北楼',
+      subtitle: 'North Tower',
+      tag: 'NORTH TOWER',
+      color: 0x8a6838,
+      description: '北楼高三层，长约7米，宽约4米，是悬空寺中最高的建筑体。从一层到三层分别是五佛殿、观音殿和三教殿。北楼以佛教为主，最顶层的三教殿集佛、道、儒三教于一殿，是悬空寺"三教合一"的标志。北楼凌空高悬于峭壁之上，气势最为壮观，也是游客登临的最高点。',
+      data: [
+        { label: '楼高', value: '三层（全寺最高）' },
+        { label: '长度', value: '约7米' },
+        { label: '宽度', value: '约4米' },
+        { label: '宗教属性', value: '佛教+三教合一' },
+      ],
+      facts: [
+        '悬空寺最高的建筑体',
+        '顶层三教殿是三教合一的标志性建筑',
+        '凌空高悬于峭壁之上',
+        '与南楼隔空相望，通过栈道连接',
+      ],
+    },
+    {
+      id: 'north-l1',
+      name: '五佛殿（北楼一层）',
+      subtitle: 'Wufu Hall · North L1',
+      tag: 'NORTH L1',
+      color: 0xa88848,
+      description: '五佛殿位于北楼底层，因供奉五方佛而得名。五方佛即中央毗卢遮那佛（大日如来）、东方阿閦佛、南方宝生佛、西方阿弥陀佛、北方不空成就佛，代表五方五智。殿内佛像虽为微缩版但制作精巧。五佛殿是北楼的入口层，与南楼纯阳宫遥相呼应。',
+      data: [
+        { label: '位置', value: '北楼一层' },
+        { label: '主供', value: '五方佛' },
+        { label: '佛数', value: '5尊' },
+        { label: '代表', value: '五方五智' },
+      ],
+      facts: [
+        '中央毗卢遮那佛代表法界体性智',
+        '东方阿閦佛代表大圆镜智',
+        '南方宝生佛代表平等性智',
+        '西方阿弥陀佛代表妙观察智',
+        '北方不空成就佛代表成所作智',
+      ],
+    },
+    {
+      id: 'north-l2',
+      name: '观音殿（北楼二层）',
+      subtitle: 'Guanyin Hall · North L2',
+      tag: 'NORTH L2',
+      color: 0x9a7838,
+      description: '观音殿位于北楼中层，供奉观世音菩萨。观音菩萨是大乘佛教中最受民众崇拜的菩萨，象征慈悲与智慧。殿内造像精美，虽空间有限但庄严殊胜。观音殿在北楼三层中承上启下——下层五佛殿代表佛法世界的结构，中层观音代表慈悲救度，顶层三教殿代表三教圆融。',
+      data: [
+        { label: '位置', value: '北楼二层' },
+        { label: '主供', value: '观世音菩萨' },
+        { label: '象征', value: '慈悲与智慧' },
+        { label: '布局意义', value: '承上启下' },
+      ],
+      facts: [
+        '观音菩萨是最受民众崇拜的大乘菩萨',
+        '象征慈悲救度、有求必应',
+        '殿内造像精美庄严',
+        '在北楼三层布局中承上启下',
+      ],
+    },
+    {
+      id: 'north-l3',
+      name: '三教殿（北楼三层）',
+      subtitle: 'Sanjiao Hall · North L3',
+      tag: 'NORTH L3 · CROWN',
+      color: 0xd4a84b,
+      description: '三教殿是悬空寺的核心殿宇，位于北楼最高层，是体现"三教合一"的典型殿阁。不足10平方米的空间里，释迦牟尼居中拈花，老子居右拂尘，孔子居左执书卷——佛、道、儒三位教主同殿供奉，全国绝无仅有。这种三教共聚一堂的布局，象征中国文化中三教融合的思想精髓。三教殿也是悬空寺最高的殿阁，登临其上可俯瞰金龙峡全貌。',
+      data: [
+        { label: '位置', value: '北楼三层（全寺最高）' },
+        { label: '面积', value: '不足10平方米' },
+        { label: '主供', value: '佛·道·儒三教' },
+        { label: '独特性', value: '全国仅存' },
+      ],
+      facts: [
+        '释迦牟尼居中拈花 — 代表佛法',
+        '老子居右拂尘 — 代表道家',
+        '孔子居左执书卷 — 代表儒家',
+        '三教合一布局全国绝无仅有',
+        '象征中国文化三教融合的思想精髓',
+        '李白所题"壮观"二字就在寺下岩石上',
+      ],
+    },
+    {
+      id: 'bridge',
+      name: '长线桥（栈道）',
+      subtitle: 'Connecting Bridge & Plank Road',
+      tag: 'BRIDGE',
+      color: 0x6b5030,
+      description: '长线桥连接南楼与北楼，长约10米，桥上建楼、楼内建殿、殿内供佛，形成奇幻、奇险、奇巧的景观。栈道分上下两层，将两座三檐歇山顶高楼连为闭环参观路线。栈道悬空架设于峭壁之上，一侧贴崖一侧悬空，行走其间惊心动魄。栈道下部有立柱支撑（多为虚设），实际承重仍靠横梁。',
+      data: [
+        { label: '长度', value: '约10米' },
+        { label: '层数', value: '上下两层' },
+        { label: '功能', value: '连接南北楼' },
+        { label: '形式', value: '桥上建楼' },
+      ],
+      facts: [
+        '桥上建楼、楼内建殿、殿内供佛——三层嵌套',
+        '上下两层栈道形成闭环参观路线',
+        '一侧贴崖一侧悬空，行走惊心动魄',
+        '栈道下的立柱大多虚设，承重靠横梁',
+      ],
+    },
+    {
+      id: 'courtyard',
+      name: '寺院主体',
+      subtitle: 'Main Temple Courtyard',
+      tag: 'COURTYARD',
+      color: 0x7a6840,
+      description: '寺院主体位于南北两楼之间，包括大雄宝殿、太乙殿、关帝殿、钟楼、鼓楼、送子观音殿、伽蓝殿等。这片区域是悬空寺的"一院"部分，虽然面积有限却功能齐全。寺门向南，以西为正，呈南北走向的多层次横向布局。各殿宇构件全靠榫卯衔接，不用一钉一铆。殿楼分布对称中有变化，分散中有联络，曲折回环，虚实相生。',
+      data: [
+        { label: '布局', value: '一院两楼' },
+        { label: '走向', value: '南北横向' },
+        { label: '主要殿宇', value: '大雄宝殿等' },
+        { label: '连接方式', value: '榫卯结构' },
+      ],
+      facts: [
+        '包含大雄宝殿、太乙殿、关帝殿、钟鼓楼等',
+        '面积仅152.5平方米却容纳40间殿阁',
+        '寺门向南，以西为正',
+        '全靠榫卯衔接，不用一钉一铆',
+        '"窟中有楼，楼中有穴，半壁楼殿半壁窟"',
+      ],
+    },
+  ]
+};
+
+// ===== Three.js Setup =====
+const container = document.getElementById('scene-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0f1318, 60, 200);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.position.set(35, 20, 45);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 15;
+controls.maxDistance = 80;
+controls.maxPolarAngle = Math.PI * 0.52;
+controls.target.set(0, 12, 0);
+controls.autoRotate = false;
+controls.autoRotateSpeed = 0.4;
+
+// ===== Lighting =====
+const ambientLight = new THREE.AmbientLight(0x3a4048, 0.5);
+scene.add(ambientLight);
+
+const hemiLight = new THREE.HemisphereLight(0x6a7888, 0x1a1a18, 0.35);
+scene.add(hemiLight);
+
+const keyLight = new THREE.DirectionalLight(0xe8d8a8, 1.0);
+keyLight.position.set(25, 35, 20);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.width = 2048;
+keyLight.shadow.mapSize.height = 2048;
+keyLight.shadow.camera.left = -35;
+keyLight.shadow.camera.right = 35;
+keyLight.shadow.camera.top = 40;
+keyLight.shadow.camera.bottom = -5;
+keyLight.shadow.camera.near = 1;
+keyLight.shadow.camera.far = 100;
+keyLight.shadow.bias = -0.0005;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0x6a7a8a, 0.35);
+fillLight.position.set(-20, 15, -15);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xd4a84b, 0.5);
+rimLight.position.set(-10, 25, -30);
+scene.add(rimLight);
+
+// ===== Ground =====
+const groundGeo = new THREE.PlaneGeometry(120, 80);
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x1a1e22,
+  roughness: 0.95,
+  metalness: 0.05,
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = 0;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// River suggestion
+const riverGeo = new THREE.PlaneGeometry(8, 100);
+const riverMat = new THREE.MeshStandardMaterial({
+  color: 0x2a3848,
+  roughness: 0.3,
+  metalness: 0.6,
+  transparent: true,
+  opacity: 0.6,
+});
+const river = new THREE.Mesh(riverGeo, riverMat);
+river.rotation.x = -Math.PI / 2;
+river.rotation.z = Math.PI / 2;
+river.position.set(0, 0.05, 0);
+scene.add(river);
+
+// ===== Cliff =====
+const cliffMat = new THREE.MeshStandardMaterial({
+  color: 0x4a4640,
+  roughness: 0.92,
+  metalness: 0.03,
+  flatShading: true,
+});
+
+const cliffMatDark = new THREE.MeshStandardMaterial({
+  color: 0x3a3630,
+  roughness: 0.95,
+  metalness: 0.02,
+  flatShading: true,
+});
+
+function buildCliff() {
+  const group = new THREE.Group();
+  group.userData = { partId: 'cliff' };
+
+  // Main cliff face (behind temple)
+  const cliffGeo = new THREE.BoxGeometry(50, 55, 12);
+  const cliff = new THREE.Mesh(cliffGeo, cliffMat);
+  cliff.position.set(0, 27, -10);
+  cliff.castShadow = true;
+  cliff.receiveShadow = true;
+  cliff.userData = { partId: 'cliff' };
+  group.add(cliff);
+
+  // Concave depression (where temple sits)
+  const concaveGeo = new THREE.BoxGeometry(20, 18, 4);
+  const concave = new THREE.Mesh(concaveGeo, cliffMatDark);
+  concave.position.set(0, 15, -6);
+  concave.receiveShadow = true;
+  concave.userData = { partId: 'cliff' };
+  group.add(concave);
+
+  // Upper overhang (protects from rain)
+  const overhangGeo = new THREE.BoxGeometry(24, 4, 6);
+  const overhang = new THREE.Mesh(overhangGeo, cliffMat);
+  overhang.position.set(0, 26, -4);
+  overhang.castShadow = true;
+  overhang.userData = { partId: 'cliff' };
+  group.add(overhang);
+
+  // Rocky texture bumps
+  for (let i = 0; i < 30; i++) {
+    const size = 1 + Math.random() * 3;
+    const bumpGeo = new THREE.DodecahedronGeometry(size, 0);
+    const bump = new THREE.Mesh(bumpGeo, Math.random() > 0.5 ? cliffMat : cliffMatDark);
+    bump.position.set(
+      (Math.random() - 0.5) * 45,
+      5 + Math.random() * 45,
+      -8 + Math.random() * 8
+    );
+    bump.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    bump.castShadow = true;
+    bump.receiveShadow = true;
+    bump.userData = { partId: 'cliff' };
+    group.add(bump);
+  }
+
+  // Left cliff wall
+  const leftWallGeo = new THREE.BoxGeometry(15, 50, 10);
+  const leftWall = new THREE.Mesh(leftWallGeo, cliffMat);
+  leftWall.position.set(-28, 25, -8);
+  leftWall.castShadow = true;
+  leftWall.receiveShadow = true;
+  leftWall.userData = { partId: 'cliff' };
+  group.add(leftWall);
+
+  // Right cliff wall
+  const rightWallGeo = new THREE.BoxGeometry(15, 50, 10);
+  const rightWall = new THREE.Mesh(rightWallGeo, cliffMat);
+  rightWall.position.set(28, 25, -8);
+  rightWall.castShadow = true;
+  rightWall.receiveShadow = true;
+  rightWall.userData = { partId: 'cliff' };
+  group.add(rightWall);
+
+  return group;
+}
+
+// ===== Materials =====
+const woodMats = {
+  dark: new THREE.MeshStandardMaterial({ color: 0x5a3e22, roughness: 0.82, metalness: 0.08 }),
+  mid: new THREE.MeshStandardMaterial({ color: 0x8a6a3e, roughness: 0.78, metalness: 0.06 }),
+  light: new THREE.MeshStandardMaterial({ color: 0xa88848, roughness: 0.75, metalness: 0.05 }),
+  roof: new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 0.85, metalness: 0.05 }),
+  beam: new THREE.MeshStandardMaterial({ color: 0x6b5030, roughness: 0.7, metalness: 0.1 }),
+  gold: new THREE.MeshStandardMaterial({ color: 0xd4a84b, roughness: 0.4, metalness: 0.6 }),
+  goldBright: new THREE.MeshStandardMaterial({ color: 0xe8c878, roughness: 0.35, metalness: 0.7 }),
+  red: new THREE.MeshStandardMaterial({ color: 0x8a3a2e, roughness: 0.7, metalness: 0.1 }),
+  stone: new THREE.MeshStandardMaterial({ color: 0x5a5048, roughness: 0.92, metalness: 0.03 }),
+};
+
+const highlightMat = new THREE.MeshStandardMaterial({
+  color: 0xd4a84b,
+  roughness: 0.3,
+  metalness: 0.8,
+  emissive: 0xd4a84b,
+  emissiveIntensity: 0.15,
+});
+
+const partMeshes = [];
+
+// ===== Build Helper =====
+function addPartId(group, partId) {
+  group.traverse(c => {
+    if (c.isMesh) {
+      c.userData.partId = partId;
+      c.userData.originalPos = c.position.clone();
+      partMeshes.push(c);
+    }
+  });
+}
+
+// ===== Build Beams (横梁) =====
+function buildBeams() {
+  const group = new THREE.Group();
+
+  const beamCount = 27;
+  const beamPositions = [];
+
+  // Beams supporting south tower
+  for (let i = 0; i < 8; i++) {
+    beamPositions.push({ x: -8 + i * 0.3, y: 6 + i * 0.5, z: -2 });
+  }
+  // Beams supporting courtyard
+  for (let i = 0; i < 7; i++) {
+    beamPositions.push({ x: -3 + i * 1, y: 5 + Math.sin(i) * 0.5, z: -2 });
+  }
+  // Beams supporting north tower
+  for (let i = 0; i < 12; i++) {
+    beamPositions.push({ x: 5 + i * 0.3, y: 8 + i * 0.6, z: -2 });
+  }
+
+  beamPositions.forEach((pos, i) => {
+    // Exposed part of beam
+    const beamGeo = new THREE.CylinderGeometry(0.25, 0.25, 3, 8);
+    const beam = new THREE.Mesh(beamGeo, woodMats.beam);
+    beam.rotation.z = Math.PI / 2;
+    beam.position.set(pos.x, pos.y, pos.z + 0.5);
+    beam.castShadow = true;
+    beam.userData = { partId: 'beams' };
+    beam.userData.originalPos = beam.position.clone();
+    partMeshes.push(beam);
+    group.add(beam);
+
+    // Beam end in rock (darker)
+    const endGeo = new THREE.CylinderGeometry(0.27, 0.27, 0.5, 8);
+    const end = new THREE.Mesh(endGeo, woodMats.dark);
+    end.rotation.z = Math.PI / 2;
+    end.position.set(pos.x - 1.5, pos.y, pos.z - 0.5);
+    end.castShadow = true;
+    end.userData = { partId: 'beams' };
+    end.userData.originalPos = end.position.clone();
+    partMeshes.push(end);
+    group.add(end);
+  });
+
+  return group;
+}
+
+// ===== Build Pillars =====
+function buildPillars() {
+  const group = new THREE.Group();
+
+  const pillarPositions = [
+    // South tower pillars
+    { x: -9, y: 2, h: 4 },
+    { x: -7, y: 2, h: 5 },
+    { x: -5, y: 2, h: 6 },
+    // Courtyard pillars
+    { x: -2, y: 2, h: 3.5 },
+    { x: 0, y: 2, h: 3.5 },
+    { x: 2, y: 2, h: 3.5 },
+    // North tower pillars
+    { x: 5, y: 2, h: 6 },
+    { x: 7, y: 2, h: 7 },
+    { x: 9, y: 2, h: 8 },
+    { x: 11, y: 2, h: 9 },
+  ];
+
+  pillarPositions.forEach(pos => {
+    const pillarGeo = new THREE.CylinderGeometry(0.12, 0.15, pos.h, 8);
+    const pillar = new THREE.Mesh(pillarGeo, woodMats.mid);
+    pillar.position.set(pos.x, pos.y + pos.h / 2, pos.z || 1);
+    pillar.castShadow = true;
+    pillar.userData = { partId: 'pillars' };
+    pillar.userData.originalPos = pillar.position.clone();
+    partMeshes.push(pillar);
+    group.add(pillar);
+  });
+
+  return group;
+}
+
+// ===== Build Tower (楼阁) =====
+function buildTower(config) {
+  const { partIdTower, partIds, x, baseY, floors, width, depth, floorHeight } = config;
+  const group = new THREE.Group();
+
+  for (let f = 0; f < floors; f++) {
+    const y = baseY + f * floorHeight;
+    const floorPartId = partIds[f];
+    const fw = width - f * 0.3; // slight taper
+    const fd = depth - f * 0.2;
+
+    // Floor platform
+    const floorGeo = new THREE.BoxGeometry(fw, 0.3, fd);
+    const floor = new THREE.Mesh(floorGeo, woodMats.dark);
+    floor.position.set(x, y, 0);
+    floor.castShadow = true;
+    floor.receiveShadow = true;
+    floor.userData = { partId: floorPartId };
+    floor.userData.originalPos = floor.position.clone();
+    partMeshes.push(floor);
+    group.add(floor);
+
+    // Walls (back against cliff, front open with columns)
+    // Back wall
+    const backWallGeo = new THREE.BoxGeometry(fw, floorHeight * 0.7, 0.15);
+    const backWall = new THREE.Mesh(backWallGeo, woodMats.mid);
+    backWall.position.set(x, y + floorHeight * 0.4, -fd / 2 + 0.1);
+    backWall.castShadow = true;
+    backWall.receiveShadow = true;
+    backWall.userData = { partId: floorPartId };
+    backWall.userData.originalPos = backWall.position.clone();
+    partMeshes.push(backWall);
+    group.add(backWall);
+
+    // Side walls
+    const sideWallGeo = new THREE.BoxGeometry(0.15, floorHeight * 0.7, fd);
+    const leftWall = new THREE.Mesh(sideWallGeo, woodMats.mid);
+    leftWall.position.set(x - fw / 2 + 0.08, y + floorHeight * 0.4, 0);
+    leftWall.castShadow = true;
+    leftWall.userData = { partId: floorPartId };
+    leftWall.userData.originalPos = leftWall.position.clone();
+    partMeshes.push(leftWall);
+    group.add(leftWall);
+
+    const rightWall = new THREE.Mesh(sideWallGeo, woodMats.mid);
+    rightWall.position.set(x + fw / 2 - 0.08, y + floorHeight * 0.4, 0);
+    rightWall.castShadow = true;
+    rightWall.userData = { partId: floorPartId };
+    rightWall.userData.originalPos = rightWall.position.clone();
+    partMeshes.push(rightWall);
+    group.add(rightWall);
+
+    // Front columns
+    const colHeight = floorHeight * 0.65;
+    for (let c = 0; c < 3; c++) {
+      const cx = x - fw / 2 + 0.5 + (c * (fw - 1)) / 2;
+      const colGeo = new THREE.CylinderGeometry(0.12, 0.14, colHeight, 8);
+      const col = new THREE.Mesh(colGeo, woodMats.light);
+      col.position.set(cx, y + 0.3 + colHeight / 2, fd / 2 - 0.15);
+      col.castShadow = true;
+      col.userData = { partId: floorPartId };
+      col.userData.originalPos = col.position.clone();
+      partMeshes.push(col);
+      group.add(col);
+    }
+
+    // Beam above columns
+    const lintelGeo = new THREE.BoxGeometry(fw, 0.2, 0.2);
+    const lintel = new THREE.Mesh(lintelGeo, woodMats.dark);
+    lintel.position.set(x, y + 0.3 + colHeight, fd / 2 - 0.15);
+    lintel.castShadow = true;
+    lintel.userData = { partId: floorPartId };
+    lintel.userData.originalPos = lintel.position.clone();
+    partMeshes.push(lintel);
+    group.add(lintel);
+
+    // Buddha statue inside
+    const statueHeight = floorHeight * 0.4;
+    const statueGeo = new THREE.CylinderGeometry(0.3, 0.4, statueHeight, 12);
+    const statueMat = woodMats.goldBright.clone();
+    statueMat.emissive = new THREE.Color(0xd4a84b);
+    statueMat.emissiveIntensity = 0.08;
+    const statue = new THREE.Mesh(statueGeo, statueMat);
+    statue.position.set(x, y + 0.3 + statueHeight / 2 + 0.1, 0);
+    statue.castShadow = true;
+    statue.userData = { partId: floorPartId };
+    statue.userData.originalPos = statue.position.clone();
+    partMeshes.push(statue);
+    group.add(statue);
+
+    // Buddha head
+    const headGeo = new THREE.SphereGeometry(0.25, 12, 8);
+    const head = new THREE.Mesh(headGeo, statueMat);
+    head.position.set(x, y + 0.3 + statueHeight + 0.35, 0);
+    head.castShadow = true;
+    head.userData = { partId: floorPartId };
+    head.userData.originalPos = head.position.clone();
+    partMeshes.push(head);
+    group.add(head);
+
+    // Roof / eave
+    const roofY = y + floorHeight - 0.2;
+    const roofGeo = new THREE.BoxGeometry(fw + 0.8, 0.2, fd + 0.5);
+    const roof = new THREE.Mesh(roofGeo, woodMats.roof);
+    roof.position.set(x, roofY, 0);
+    roof.castShadow = true;
+    roof.userData = { partId: floorPartId };
+    roof.userData.originalPos = roof.position.clone();
+    partMeshes.push(roof);
+    group.add(roof);
+
+    // Upswept eave corners (simplified)
+    for (let e = 0; e < 2; e++) {
+      const ex = x + (e === 0 ? -1 : 1) * (fw / 2 + 0.3);
+      const eaveGeo = new THREE.ConeGeometry(0.4, 0.6, 4);
+      const eave = new THREE.Mesh(eaveGeo, woodMats.dark);
+      eave.position.set(ex, roofY + 0.2, fd / 2 - 0.1);
+      eave.rotation.z = (e === 0 ? 1 : -1) * 0.3;
+      eave.castShadow = true;
+      eave.userData = { partId: floorPartId };
+      eave.userData.originalPos = eave.position.clone();
+      partMeshes.push(eave);
+      group.add(eave);
+    }
+
+    // Railing on front
+    const railGeo = new THREE.BoxGeometry(fw - 0.4, 0.4, 0.08);
+    const rail = new THREE.Mesh(railGeo, woodMats.light);
+    rail.position.set(x, y + 0.5, fd / 2 + 0.05);
+    rail.castShadow = true;
+    rail.userData = { partId: floorPartId };
+    rail.userData.originalPos = rail.position.clone();
+    partMeshes.push(rail);
+    group.add(rail);
+  }
+
+  // Top roof (peaked)
+  const topY = baseY + floors * floorHeight;
+  const topRoofGeo = new THREE.ConeGeometry(width * 0.8, 1.5, 4);
+  const topRoof = new THREE.Mesh(topRoofGeo, woodMats.roof);
+  topRoof.position.set(x, topY + 0.5, 0);
+  topRoof.rotation.y = Math.PI / 4;
+  topRoof.castShadow = true;
+  topRoof.userData = { partId: partIds[floors - 1] };
+  topRoof.userData.originalPos = topRoof.position.clone();
+  partMeshes.push(topRoof);
+  group.add(topRoof);
+
+  return group;
+}
+
+// ===== Build Bridge =====
+function buildBridge() {
+  const group = new THREE.Group();
+
+  // Upper bridge
+  const upperBridgeGeo = new THREE.BoxGeometry(10, 0.2, 1.5);
+  const upperBridge = new THREE.Mesh(upperBridgeGeo, woodMats.mid);
+  upperBridge.position.set(0, 11, 0.5);
+  upperBridge.castShadow = true;
+  upperBridge.userData = { partId: 'bridge' };
+  upperBridge.userData.originalPos = upperBridge.position.clone();
+  partMeshes.push(upperBridge);
+  group.add(upperBridge);
+
+  // Upper bridge railings
+  for (let i = 0; i < 2; i++) {
+    const railGeo = new THREE.BoxGeometry(10, 0.5, 0.05);
+    const rail = new THREE.Mesh(railGeo, woodMats.light);
+    rail.position.set(0, 11.3, i === 0 ? -0.2 : 1.2);
+    rail.castShadow = true;
+    rail.userData = { partId: 'bridge' };
+    rail.userData.originalPos = rail.position.clone();
+    partMeshes.push(rail);
+    group.add(rail);
+  }
+
+  // Lower bridge
+  const lowerBridgeGeo = new THREE.BoxGeometry(8, 0.2, 1.3);
+  const lowerBridge = new THREE.Mesh(lowerBridgeGeo, woodMats.mid);
+  lowerBridge.position.set(0, 6.5, 0.5);
+  lowerBridge.castShadow = true;
+  lowerBridge.userData = { partId: 'bridge' };
+  lowerBridge.userData.originalPos = lowerBridge.position.clone();
+  partMeshes.push(lowerBridge);
+  group.add(lowerBridge);
+
+  // Bridge support pillars
+  for (let i = 0; i < 4; i++) {
+    const px = -3 + i * 2;
+    const ph = 6.5 - 2;
+    const pillarGeo = new THREE.CylinderGeometry(0.08, 0.1, ph, 6);
+    const pillar = new THREE.Mesh(pillarGeo, woodMats.mid);
+    pillar.position.set(px, 2 + ph / 2, 0.8);
+    pillar.castShadow = true;
+    pillar.userData = { partId: 'bridge' };
+    pillar.userData.originalPos = pillar.position.clone();
+    partMeshes.push(pillar);
+    group.add(pillar);
+  }
+
+  // Bridge connecting roof
+  const bridgeRoofGeo = new THREE.BoxGeometry(10, 0.15, 1.8);
+  const bridgeRoof = new THREE.Mesh(bridgeRoofGeo, woodMats.roof);
+  bridgeRoof.position.set(0, 12, 0.5);
+  bridgeRoof.castShadow = true;
+  bridgeRoof.userData = { partId: 'bridge' };
+  bridgeRoof.userData.originalPos = bridgeRoof.position.clone();
+  partMeshes.push(bridgeRoof);
+  group.add(bridgeRoof);
+
+  return group;
+}
+
+// ===== Build Courtyard =====
+function buildCourtyard() {
+  const group = new THREE.Group();
+
+  // Main platform
+  const platGeo = new THREE.BoxGeometry(10, 0.4, 4);
+  const plat = new THREE.Mesh(platGeo, woodMats.dark);
+  plat.position.set(0, 5, 0.5);
+  plat.castShadow = true;
+  plat.receiveShadow = true;
+  plat.userData = { partId: 'courtyard' };
+  plat.userData.originalPos = plat.position.clone();
+  partMeshes.push(plat);
+  group.add(plat);
+
+  // Small halls
+  for (let i = 0; i < 3; i++) {
+    const hx = -3 + i * 3;
+    const hallGeo = new THREE.BoxGeometry(2.5, 2, 2);
+    const hall = new THREE.Mesh(hallGeo, woodMats.mid);
+    hall.position.set(hx, 6.2, 0);
+    hall.castShadow = true;
+    hall.receiveShadow = true;
+    hall.userData = { partId: 'courtyard' };
+    hall.userData.originalPos = hall.position.clone();
+    partMeshes.push(hall);
+    group.add(hall);
+
+    // Hall roof
+    const hallRoofGeo = new THREE.ConeGeometry(2, 0.8, 4);
+    const hallRoof = new THREE.Mesh(hallRoofGeo, woodMats.roof);
+    hallRoof.position.set(hx, 7.6, 0);
+    hallRoof.rotation.y = Math.PI / 4;
+    hallRoof.castShadow = true;
+    hallRoof.userData = { partId: 'courtyard' };
+    hallRoof.userData.originalPos = hallRoof.position.clone();
+    partMeshes.push(hallRoof);
+    group.add(hallRoof);
+  }
+
+  // Bell tower (left)
+  const bellGeo = new THREE.BoxGeometry(1.5, 2.5, 1.5);
+  const bell = new THREE.Mesh(bellGeo, woodMats.light);
+  bell.position.set(-5.5, 6.5, 0.5);
+  bell.castShadow = true;
+  bell.userData = { partId: 'courtyard' };
+  bell.userData.originalPos = bell.position.clone();
+  partMeshes.push(bell);
+  group.add(bell);
+
+  const bellRoofGeo = new THREE.ConeGeometry(1.3, 0.8, 4);
+  const bellRoof = new THREE.Mesh(bellRoofGeo, woodMats.roof);
+  bellRoof.position.set(-5.5, 8.1, 0.5);
+  bellRoof.rotation.y = Math.PI / 4;
+  bellRoof.castShadow = true;
+  bellRoof.userData = { partId: 'courtyard' };
+  bellRoof.userData.originalPos = bellRoof.position.clone();
+  partMeshes.push(bellRoof);
+  group.add(bellRoof);
+
+  // Drum tower (right)
+  const drumGeo = new THREE.BoxGeometry(1.5, 2.5, 1.5);
+  const drum = new THREE.Mesh(drumGeo, woodMats.light);
+  drum.position.set(5.5, 6.5, 0.5);
+  drum.castShadow = true;
+  drum.userData = { partId: 'courtyard' };
+  drum.userData.originalPos = drum.position.clone();
+  partMeshes.push(drum);
+  group.add(drum);
+
+  const drumRoofGeo = new THREE.ConeGeometry(1.3, 0.8, 4);
+  const drumRoof = new THREE.Mesh(drumRoofGeo, woodMats.roof);
+  drumRoof.position.set(5.5, 8.1, 0.5);
+  drumRoof.rotation.y = Math.PI / 4;
+  drumRoof.castShadow = true;
+  drumRoof.userData = { partId: 'courtyard' };
+  drumRoof.userData.originalPos = drumRoof.position.clone();
+  partMeshes.push(drumRoof);
+  group.add(drumRoof);
+
+  return group;
+}
+
+// ===== Assemble Scene =====
+const cliff = buildCliff();
+scene.add(cliff);
+
+const beams = buildBeams();
+scene.add(beams);
+
+const pillars = buildPillars();
+scene.add(pillars);
+
+// South tower (left)
+const southTower = buildTower({
+  partIdTower: 'south-tower',
+  partIds: ['south-l1', 'south-l2', 'south-l3'],
+  x: -8,
+  baseY: 5,
+  floors: 3,
+  width: 5,
+  depth: 3.5,
+  floorHeight: 2.5,
+});
+scene.add(southTower);
+
+// North tower (right, taller)
+const northTower = buildTower({
+  partIdTower: 'north-tower',
+  partIds: ['north-l1', 'north-l2', 'north-l3'],
+  x: 8,
+  baseY: 6,
+  floors: 3,
+  width: 4.5,
+  depth: 3,
+  floorHeight: 2.8,
+});
+scene.add(northTower);
+
+// Bridge
+const bridge = buildBridge();
+scene.add(bridge);
+
+// Courtyard
+const courtyard = buildCourtyard();
+scene.add(courtyard);
+
+// "壮观" inscription on rock (simplified as a red plane)
+const inscriptionGeo = new THREE.PlaneGeometry(2, 1);
+const inscriptionMat = new THREE.MeshStandardMaterial({
+  color: 0xb8362e,
+  roughness: 0.6,
+  metalness: 0.1,
+  emissive: 0x8a2a20,
+  emissiveIntensity: 0.1,
+});
+const inscription = new THREE.Mesh(inscriptionGeo, inscriptionMat);
+inscription.position.set(0, 3, -3.5);
+inscription.userData = { partId: 'cliff' };
+partMeshes.push(inscription);
+scene.add(inscription);
+
+// ===== Interaction =====
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredPart = null;
+let selectedPart = null;
+const tooltip = document.getElementById('tooltip');
+
+function onMouseMove(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(partMeshes, false);
+
+  if (intersects.length > 0) {
+    const partId = intersects[0].object.userData.partId;
+    if (partId) {
+      const partData = TEMPLE_DATA.parts.find(p => p.id === partId);
+      if (partData) {
+        hoveredPart = partId;
+        tooltip.textContent = partData.name;
+        tooltip.style.left = (event.clientX + 15) + 'px';
+        tooltip.style.top = (event.clientY + 10) + 'px';
+        tooltip.classList.add('visible');
+        document.body.style.cursor = 'pointer';
+        return;
+      }
+    }
+  }
+
+  hoveredPart = null;
+  tooltip.classList.remove('visible');
+  document.body.style.cursor = 'default';
+}
+
+function onClick(event) {
+  if (event.target.closest('#info-panel') || event.target.closest('#top-bar') || event.target.closest('#bottom-bar')) return;
+
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(partMeshes, false);
+
+  if (intersects.length > 0) {
+    const partId = intersects[0].object.userData.partId;
+    if (partId) selectPart(partId);
+  }
+}
+
+function selectPart(partId) {
+  selectedPart = partId;
+  const partData = TEMPLE_DATA.parts.find(p => p.id === partId);
+  if (!partData) return;
+
+  let html = `
+    <div class="panel-tag">${partData.tag}</div>
+    <div class="panel-title">${partData.name}</div>
+    <div class="panel-subtitle">${partData.subtitle}</div>
+    <div class="panel-divider"></div>
+    <div class="panel-section">
+      <div class="panel-section-title">详细介绍</div>
+      <div class="panel-text">${partData.description}</div>
+    </div>
+  `;
+
+  if (partData.data && partData.data.length > 0) {
+    html += `<div class="panel-section">
+      <div class="panel-section-title">关键数据</div>
+      <div class="panel-data">`;
+    partData.data.forEach(d => {
+      html += `<div class="data-item"><div class="data-label">${d.label}</div><div class="data-value">${d.value}</div></div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  if (partData.facts && partData.facts.length > 0) {
+    html += `<div class="panel-section">
+      <div class="panel-section-title">要点</div>
+      <div class="panel-text">`;
+    partData.facts.forEach(f => { html += `• ${f}<br>`; });
+    html += `</div></div>`;
+  }
+
+  document.getElementById('panel-content').innerHTML = html;
+  document.getElementById('info-panel').classList.add('open');
+  highlightPart(partId);
+
+  document.querySelectorAll('.layer-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.partId === partId);
+  });
+}
+
+function highlightPart(partId) {
+  partMeshes.forEach(mesh => {
+    if (mesh.userData.partId === partId) {
+      if (!mesh.userData.savedMaterial) mesh.userData.savedMaterial = mesh.material;
+      mesh.material = highlightMat;
+    } else {
+      if (mesh.userData.savedMaterial) {
+        mesh.material = mesh.userData.savedMaterial;
+        delete mesh.userData.savedMaterial;
+      }
+    }
+  });
+}
+
+function clearHighlight() {
+  partMeshes.forEach(mesh => {
+    if (mesh.userData.savedMaterial) {
+      mesh.material = mesh.userData.savedMaterial;
+      delete mesh.userData.savedMaterial;
+    }
+  });
+}
+
+renderer.domElement.addEventListener('mousemove', onMouseMove);
+renderer.domElement.addEventListener('click', onClick);
+
+// ===== Controls =====
+document.getElementById('panel-close').addEventListener('click', () => {
+  document.getElementById('info-panel').classList.remove('open');
+  clearHighlight();
+  selectedPart = null;
+  document.querySelectorAll('.layer-chip').forEach(chip => chip.classList.remove('active'));
+});
+
+let exploded = false;
+let explodeProgress = 0;
+let explodeTarget = 0;
+
+document.getElementById('btn-explode').addEventListener('click', () => {
+  exploded = !exploded;
+  explodeTarget = exploded ? 1 : 0;
+  document.getElementById('btn-explode').classList.toggle('active', exploded);
+  document.getElementById('explode-status').classList.toggle('visible', exploded);
+  document.getElementById('explode-status').textContent = exploded ? 'EXPLODED VIEW: ON' : '';
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  camera.position.set(35, 20, 45);
+  controls.target.set(0, 12, 0);
+  controls.update();
+});
+
+document.getElementById('btn-auto').addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  document.getElementById('btn-auto').classList.toggle('active', controls.autoRotate);
+});
+
+// Layer selector chips
+const layerSelector = document.getElementById('layer-selector');
+TEMPLE_DATA.parts.forEach(part => {
+  const chip = document.createElement('div');
+  chip.className = 'layer-chip';
+  chip.textContent = part.name;
+  chip.dataset.partId = part.id;
+  chip.addEventListener('click', () => selectPart(part.id));
+  layerSelector.appendChild(chip);
+});
+
+// ===== Explode Animation =====
+function updateExplode() {
+  const speed = 0.045;
+  if (Math.abs(explodeProgress - explodeTarget) < 0.001) {
+    explodeProgress = explodeTarget;
+  } else {
+    explodeProgress += (explodeTarget - explodeProgress) * speed;
+  }
+
+  if (explodeProgress > 0.001 || explodeTarget > 0) {
+    const t = explodeProgress;
+    const offsets = {
+      'cliff': -3 * t,
+      'beams': 0,
+      'pillars': -2 * t,
+      'south-tower': 0,
+      'south-l1': 0,
+      'south-l2': 3 * t,
+      'south-l3': 6 * t,
+      'north-tower': 0,
+      'north-l1': 0,
+      'north-l2': 3 * t,
+      'north-l3': 6 * t,
+      'bridge': 2 * t,
+      'courtyard': 0,
+    };
+
+    partMeshes.forEach(mesh => {
+      const partId = mesh.userData.partId;
+      const offset = offsets[partId] || 0;
+      if (mesh.userData.originalPos) {
+        mesh.position.y = mesh.userData.originalPos.y + offset;
+      }
+      // Horizontal spread for some parts
+      if (partId === 'beams' && t > 0) {
+        const dir = mesh.position.clone();
+        dir.y = 0;
+        if (dir.length() > 0) {
+          dir.normalize().multiplyScalar(0.8 * t);
+          mesh.position.x = mesh.userData.originalPos.x + dir.x;
+          mesh.position.z = mesh.userData.originalPos.z + dir.z;
+        }
+      }
+    });
+  }
+}
+
+// ===== Animation Loop =====
+function animate() {
+  requestAnimationFrame(animate);
+  updateExplode();
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ===== Load Progress =====
+let loadProgress = 0;
+const loadInterval = setInterval(() => {
+  loadProgress += Math.random() * 20;
+  if (loadProgress >= 100) {
+    loadProgress = 100;
+    clearInterval(loadInterval);
+    setTimeout(() => {
+      document.getElementById('loader').classList.add('hidden');
+    }, 400);
+  }
+  document.getElementById('loader-fill').style.width = loadProgress + '%';
+}, 80);
+
+window.THREE = THREE;
+window.scene = scene;
+window.camera = camera;
+window.renderer = renderer;
+animate();
+
+</script>
+<script src="theme.js"></script>
+</body>
+</html>

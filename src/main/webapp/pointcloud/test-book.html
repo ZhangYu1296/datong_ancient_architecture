@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Book Flip Test</title>
+<style>
+body { margin: 0; background: #080604; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: serif; }
+.book-stage { position: relative; width: 800px; height: 500px; perspective: 2000px; }
+.book { position: relative; width: 100%; height: 100%; }
+.book-base { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; z-index: 1; }
+.book-base-left, .book-base-right { width: 50%; height: 100%; background: #2a2218; border: 1px solid rgba(196,168,120,0.15); }
+.book-base-left { border-radius: 6px 0 0 6px; }
+.book-base-right { border-radius: 0 6px 6px 0; }
+.book-pages { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+.book-spine { position: absolute; top: 0; left: 50%; width: 4px; height: 100%; transform: translateX(-50%); background: rgba(196,168,120,0.2); z-index: 60; }
+.book-page { position: absolute; top: 0; left: 50%; width: 50%; height: 100%; perspective: 1800px; cursor: pointer; }
+.book-page-inner { position: relative; width: 100%; height: 100%; transform-origin: left center; transform-style: preserve-3d; transition: transform 0.9s cubic-bezier(0.645,0.045,0.355,1); }
+.book-page.flipped .book-page-inner { transform: rotateY(-180deg); }
+.book-page.flipping { z-index: 100 !important; }
+.book-page-face { position: absolute; top: 0; left: 0; width: 100%; height: 100%; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; padding: 2rem; box-sizing: border-box; }
+.book-page-front { background: linear-gradient(135deg, #2a2218, #1a140e); border-radius: 0 6px 6px 0; border: 1px solid rgba(196,168,120,0.15); border-left: none; color: #e8c878; }
+.book-page-back { transform: rotateY(180deg); background: linear-gradient(225deg, #2a2218, #1a140e); border-radius: 6px 0 0 6px; border: 1px solid rgba(196,168,120,0.15); border-right: none; color: #e8c878; }
+.book-nav { position: absolute; bottom: -50px; left: 50%; transform: translateX(-50%); display: flex; gap: 1rem; align-items: center; }
+.book-nav-btn { background: #2a2218; color: #e8c878; border: 1px solid rgba(196,168,120,0.3); border-radius: 4px; padding: 0.4rem 1rem; cursor: pointer; font-size: 1.2rem; }
+.book-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.book-nav-info { color: #a09888; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="book-stage">
+  <div class="book">
+    <div class="book-base">
+      <div class="book-base-left"></div>
+      <div class="book-base-right"></div>
+    </div>
+    <div class="book-spine"></div>
+    <div class="book-pages" id="book-pages"></div>
+  </div>
+  <div class="book-nav">
+    <button class="book-nav-btn" id="book-prev">‹</button>
+    <span class="book-nav-info" id="book-info">1 / 4</span>
+    <button class="book-nav-btn" id="book-next">›</button>
+  </div>
+</div>
+<script>
+const PAGE_DATA = [
+  { front: '封面 - 山西古建筑史', back: '序言 - 中国建筑以木料为主要构材...' },
+  { front: '第一章 唐代建筑 - 出檐深远，斗拱硕大', back: '南禅寺大佛殿 - 782年' },
+  { front: '佛光寺东大殿 - 857年 - 中国第一国宝', back: '第三章 辽代建筑 - 承唐之风' },
+  { front: '应县木塔 - 67.31米 - 世界最高最古木塔', back: '封底 - 終' },
+];
+
+let bookAnimLock = false;
+const totalPages = PAGE_DATA.length;
+
+function renderBook() {
+  const container = document.getElementById('book-pages');
+  container.innerHTML = '';
+  PAGE_DATA.forEach((data, i) => {
+    const page = document.createElement('div');
+    page.className = 'book-page';
+    page.dataset.index = i;
+    page.style.zIndex = totalPages - i;
+    const inner = document.createElement('div');
+    inner.className = 'book-page-inner';
+    const front = document.createElement('div');
+    front.className = 'book-page-face book-page-front';
+    front.innerHTML = '<h2>' + data.front + '</h2><p style="color:#a09888;margin-top:1rem;">点击翻页 →</p>';
+    const back = document.createElement('div');
+    back.className = 'book-page-face book-page-back';
+    back.innerHTML = '<h2>' + data.back + '</h2>';
+    inner.appendChild(front);
+    inner.appendChild(back);
+    page.appendChild(inner);
+    page.addEventListener('click', () => handlePageClick(i));
+    container.appendChild(page);
+  });
+  updateBookState();
+}
+
+function handlePageClick(pageIndex) {
+  if (bookAnimLock) return;
+  const page = document.querySelector('.book-page[data-index="' + pageIndex + '"]');
+  if (!page) return;
+  page.style.zIndex = 999;
+  page.classList.add('flipping');
+  bookAnimLock = true;
+  if (page.classList.contains('flipped')) {
+    page.classList.remove('flipped');
+  } else {
+    page.classList.add('flipped');
+  }
+  setTimeout(() => {
+    page.classList.remove('flipping');
+    bookAnimLock = false;
+    updateBookState();
+  }, 900);
+}
+
+function updateBookState() {
+  const allPages = document.querySelectorAll('.book-page');
+  let flippedCount = 0;
+  allPages.forEach((p, idx) => {
+    if (p.classList.contains('flipped')) {
+      flippedCount++;
+      p.style.zIndex = idx + 1;
+    } else {
+      p.style.zIndex = (totalPages - idx) + 100;
+    }
+  });
+  document.getElementById('book-info').textContent = (flippedCount + 1) + ' / ' + totalPages;
+  document.getElementById('book-prev').disabled = flippedCount === 0;
+  document.getElementById('book-next').disabled = flippedCount >= totalPages - 1;
+}
+
+document.getElementById('book-prev').addEventListener('click', () => {
+  if (bookAnimLock) return;
+  const allPages = Array.from(document.querySelectorAll('.book-page'));
+  for (let i = allPages.length - 1; i >= 0; i--) {
+    if (allPages[i].classList.contains('flipped')) {
+      handlePageClick(parseInt(allPages[i].dataset.index));
+      return;
+    }
+  }
+});
+document.getElementById('book-next').addEventListener('click', () => {
+  if (bookAnimLock) return;
+  const allPages = Array.from(document.querySelectorAll('.book-page'));
+  for (let i = 0; i < allPages.length; i++) {
+    if (!allPages[i].classList.contains('flipped')) {
+      handlePageClick(parseInt(allPages[i].dataset.index));
+      return;
+    }
+  }
+});
+
+renderBook();
+</script>
+</body>
+</html>

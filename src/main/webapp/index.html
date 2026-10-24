@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大同古建漫游 · 数字穿越</title>
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <style>
+    /* 首页：佛小伴对话框居中弹出 */
+    body.npc-top .npc-card {
+      top: 50%; left: 50%; bottom: auto;
+      transform: translate(-50%, -46%) scale(.92);
+      width: min(450px, 92vw);
+      box-shadow: 0 26px 60px rgba(20, 12, 4, .55), 0 0 0 5px rgba(240, 201, 79, .28), inset 0 0 0 1px rgba(255, 255, 255, .6);
+    }
+    body.npc-top .npc-card.show { transform: translate(-50%, -50%) scale(1); }
+    body.npc-top .npc-card::before { display: none; }
+    body.npc-top .npc-mini { top: auto; bottom: 22px; }
+  </style>
+</head>
+<body class="npc-top scroll-page">
+
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <div class="logo"><span class="seal">同</span>大同古建漫游</div>
+    <div class="spacer"></div>
+    <div class="progress-box" title="碎片收集进度">
+      <span class="label">碎片</span>
+      <span class="num" id="fragNum">0/6</span>
+      <div class="progress-pips" id="fragPips"></div>
+    </div>
+    <button class="btn btn-gold" onclick="location.href='museum.html'">碎片博物馆</button>
+    <button class="btn btn-ghost" onclick="location.href='story.html'">项目序章</button>
+    <button class="btn btn-ghost" onclick="location.href='culture.html'">文脉总览</button>
+    <button class="btn btn-ghost" onclick="location.href='tech.html'">技术工坊</button>
+    <button class="btn btn-ghost" onclick="location.href='about.html'">关于我们</button>
+    <button class="btn btn-ghost" onclick="location.href='pointcloud/index.html'">点云秘境・古建数字舱</button>
+    <button class="btn btn-ghost" id="btnSound" title="音效开关">🔊</button>
+  </header>
+
+  <!-- 剧情开篇视觉区（与短视频开场联动） -->
+  <section class="hero">
+    <canvas id="heroParticles"></canvas>
+    <div class="hero-inner">
+      <p class="hero-kicker">数字穿越 · 古建闯关 · 六大点位</p>
+      <h1 class="hero-title">大同古建漫游</h1>
+      <div class="hero-vo" id="heroVo" aria-live="polite"></div>
+      <div class="hero-actions">
+        <button class="btn btn-gold hero-start" id="btnStart">✦ 开启漫游</button>
+      </div>
+      <p class="hero-note">本项目三维资产精度 0.03mm，源自实景三维扫描</p>
+    </div>
+    <div class="hero-scroll">▾ 六站古建 · 闯关挑战</div>
+  </section>
+
+  <!-- 闯关导航：6 张古风科技卡片 -->
+  <section class="gate-section">
+    <h2 class="gate-heading">六站古建 · 闯关地图</h2>
+    <p class="gate-sub">浏览完一座古建，自动解锁下一关 —— 与短视频六大点位一一对应</p>
+    <div class="gate-grid" id="gateGrid"></div>
+    <div class="save-row">
+      <span id="saveInfo">存档：碎片 0/6</span>
+      <button class="btn btn-ghost btn-sm" id="btnReset">重置存档</button>
+    </div>
+  </section>
+
+  <footer class="home-footer">大同古建漫游 · 科技国风数字化项目 · 三维资产精度 0.03mm</footer>
+
+  <script src="js/data.js?v=5"></script>
+  <script src="js/progress.js?v=5"></script>
+  <script src="js/npc.js?v=5"></script>
+  <script src="js/particles.js?v=5"></script>
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/home.js?v=5"></script>
+</body>
+</html>

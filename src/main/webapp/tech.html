@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大同古建漫游 · 技术工坊</title>
+  <link rel="stylesheet" href="css/style.css?v=5">
+</head>
+<body class="scroll-page">
+
+  <header class="topbar">
+    <button class="btn btn-ghost" onclick="location.href='index.html'">← 返回首页</button>
+    <div class="logo" style="font-size:18px"><span class="seal" style="width:26px;height:26px;font-size:14px">技</span>技术工坊 · 数字资产</div>
+    <div class="spacer"></div>
+    <button class="btn btn-gold" onclick="location.href='museum.html'">碎片博物馆</button>
+    <button class="btn btn-ghost" onclick="location.href='pointcloud/index.html'">点云秘境・古建数字舱</button>
+  </header>
+
+  <div class="page-shell">
+    <div class="page-inner">
+      <div class="page-head">
+        <h1>技术工坊 · 数字资产</h1>
+        <div class="sub">从实地扫描到网页轻量化 —— 揭开 0.03mm 数字古建的诞生全程</div>
+      </div>
+
+      <!-- 精度徽标 -->
+      <div class="acc-hero">
+        <span class="acc-badge big">三维资产精度 0.03mm</span>
+        <p>源自实景三维扫描 · 六大点位全数据采集</p>
+      </div>
+
+      <!-- 点云原始数据预览 -->
+      <section class="article-sec">
+        <h2>点云原始数据 · 模型资产预览</h2>
+        <div class="art-grid">
+          <figure class="art-card">
+            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=dense%20laser%20scan%20point%20cloud%20of%20ancient%20Chinese%20wooden%20temple%20hall%2C%20millions%20of%20tiny%20silver%20glowing%20points%2C%20technical%20scan%20visualization%2C%20dark%20background&image_size=landscape_4_3" alt="点云原始数据">
+            <figcaption>点云原始数据 · 数百万银白点位</figcaption>
+          </figure>
+          <figure class="art-card">
+            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=3d%20wireframe%20topology%20mesh%20of%20ancient%20Chinese%20wooden%20temple%20hall%20with%20dougong%20brackets%2C%20cyan%20wireframe%20lines%20on%20dark%20background%2C%20technical%20rendering&image_size=landscape_4_3" alt="模型拓扑">
+            <figcaption>网格化建模 · 模型拓扑结构</figcaption>
+          </figure>
+          <figure class="art-card">
+            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=textured%203d%20model%20of%20ancient%20Chinese%20temple%20in%20software%20viewport%2C%20UV%20texture%20baking%20process%2C%20warm%20wood%20and%20grey%20tile%20textures%2C%20technical%20screenshot&image_size=landscape_4_3" alt="贴图烘焙">
+            <figcaption>贴图烘焙 · 材质纹理还原</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- 制作流程 -->
+      <section class="article-sec">
+        <h2>数字资产制作流程</h2>
+        <div class="tech-flow">
+          <div class="flow-step"><span class="fs-num">01</span><h4>实地采集</h4><p>三维扫描仪 + 摄影测量实地布站，多角度采集古建表面空间数据</p></div>
+          <div class="flow-step"><span class="fs-num">02</span><h4>点云配准</h4><p>多站点云拼接配准，统一到同一空间坐标系，误差控制在毫米级</p></div>
+          <div class="flow-step"><span class="fs-num">03</span><h4>去噪抽稀</h4><p>剔除漂浮噪点与冗余数据，在保留 0.03mm 细节的前提下精简数据量</p></div>
+          <div class="flow-step"><span class="fs-num">04</span><h4>网格化建模</h4><p>点云三角网格化，重建建筑形体，修补孔洞并优化拓扑结构</p></div>
+          <div class="flow-step"><span class="fs-num">05</span><h4>贴图烘焙</h4><p>高精度影像映射为模型纹理，烘焙法线与光照细节，还原真实质感</p></div>
+          <div class="flow-step"><span class="fs-num">06</span><h4>网页轻量化</h4><p>模型减面、纹理压缩、分块加载，适配 WebGL 网页端流畅漫游</p></div>
+        </div>
+      </section>
+
+      <!-- 技术栈 -->
+      <section class="article-sec">
+        <h2>技术栈清单</h2>
+        <div class="tag-cloud">
+          <span class="tech-tag">实景三维扫描</span>
+          <span class="tech-tag">无人机倾斜摄影</span>
+          <span class="tech-tag">摄影测量</span>
+          <span class="tech-tag">点云处理</span>
+          <span class="tech-tag">Blender</span>
+          <span class="tech-tag">模型减面 / LOD</span>
+          <span class="tech-tag">纹理压缩</span>
+          <span class="tech-tag">GLTF / GLB</span>
+          <span class="tech-tag">Three.js</span>
+          <span class="tech-tag">WebGL</span>
+          <span class="tech-tag">HTML5</span>
+          <span class="tech-tag">CSS3</span>
+          <span class="tech-tag">JavaScript</span>
+          <span class="tech-tag">WebAudio</span>
+          <span class="tech-tag">localStorage</span>
+        </div>
+      </section>
+
+      <!-- 模型优化说明 -->
+      <section class="article-sec">
+        <h2>大模型轻量化 · 解决网页加载卡顿</h2>
+        <div class="article">
+          <p>实景扫描产生的原始点云动辄数 GB，无法直接在网页中加载。本项目通过<b>网格减面</b>（在视觉无损前提下大幅削减三角面数）、<b>纹理压缩</b>（控制贴图分辨率与格式）、<b>分块按需加载</b>（先加载低模再替换高清资产）等手段，把资产压到网页可流畅运行的体积。</p>
+          <p>加载阶段使用<b>点云汇聚成型动画</b>（与短视频开场同款）平滑等待体验；运行阶段以 Three.js / WebGL 硬件加速渲染，保证拖拽旋转与漫游的实时帧率。</p>
+          <p>过程化建模的古建（石窟、悬空寺、华严寺、善化寺、永安寺、九龙壁）已内置于页面，可在断网或模型未就绪时即时渲染，保障展示稳定性。</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="js/audio.js?v=5"></script>
+  <script src="js/npc.js?v=5"></script>
+  <script>
+    // 技术工坊 · 佛小伴开场
+    NPC.show({
+      lines: [
+        "欢迎来到技术工坊！",
+        "这里的每一块模型，都来自 0.03 毫米精度的实景三维扫描哦～",
+        "从点云配准到网页轻量化，把千年古建装进浏览器的秘密，全在这一页！"
+      ]
+    });
+  </script>
+</body>
+</html>
